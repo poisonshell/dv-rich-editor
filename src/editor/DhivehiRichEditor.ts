@@ -397,42 +397,87 @@ export class DhivehiRichEditor implements EditorInstance {
     }
   }
 
-  public applyFormat(format: FormatType): void {
+
+  // SIMPLE FIX: Replace your applyFormat method with this
+
+public applyFormat(format: FormatType): void {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  const selectedText = selection.toString();
+
+  // Check if we're in or near markdown syntax - if so, be more careful
+  if (this.isInMarkdownSyntax() || this.isNearMarkdownSyntax()) {
+    this.applyFormatSafely(format);
+    return;
+  }
+
+  // Don't format if no text is selected
+  if (!selectedText || selectedText.trim() === '') {
+    console.log('⚠️ Please select text before applying formatting');
+    return;
+  }
+
+  // Apply formatting using execCommand
+  switch (format) {
+    case "bold":
+      document.execCommand("bold");
+      this.breakOutOfFormatting();
+      break;
+    case "italic":
+      document.execCommand("italic");
+      this.breakOutOfFormatting();
+      break;
+    case "underline":
+      document.execCommand("underline");
+      this.breakOutOfFormatting();
+      break;
+    case "strikethrough":
+      document.execCommand("strikeThrough");
+      this.breakOutOfFormatting();
+      break;
+    case "image":
+      this.openImageDialog();
+      break;
+    case "bullet-list":
+      this.insertListItem("bullet");
+      break;
+    case "numbered-list":
+      this.insertListItem("numbered");
+      break;
+  }
+}
+
+***REMOVED***
+ * Break out of formatting state after applying formatting
+***REMOVED***
+private breakOutOfFormatting(): void {
+  setTimeout(() => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
-
-    // Check if we're in or near markdown syntax - if so, be more careful
-    if (this.isInMarkdownSyntax() || this.isNearMarkdownSyntax()) {
-      this.applyFormatSafely(format);
-      return;
-    }
-
-    // Use yaa its deprecated but document.execCommand still does the job
-    switch (format) {
-      case "bold":
-        document.execCommand("bold");
-        break;
-      case "italic":
-        document.execCommand("italic");
-        break;
-      case "underline":
-        document.execCommand("underline");
-        break;
-      case "strikethrough":
-        document.execCommand("strikeThrough");
-        break;
-      case "image":
-        this.openImageDialog();
-        break;
-      case "bullet-list":
-        this.insertListItem("bullet");
-        break;
-      case "numbered-list":
-        this.insertListItem("numbered");
-        break;
-      // Add more format implementations as needed
-    }
-  }
+    
+    const range = selection.getRangeAt(0);
+    
+    // Insert a zero-width space with normal formatting to break the state
+    const breakElement = document.createElement('span');
+    breakElement.style.fontWeight = 'normal';
+    breakElement.style.fontStyle = 'normal';
+    breakElement.style.textDecoration = 'none';
+    breakElement.appendChild(document.createTextNode('\u200B')); // Zero-width space
+    
+    // Insert at cursor position
+    range.collapse(false); // Move to end of selection
+    range.insertNode(breakElement);
+    
+    // Position cursor after the break element
+    range.setStartAfter(breakElement);
+    range.setEndAfter(breakElement);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    console.log('🔄 Broke out of formatting state');
+  }, 10);
+}
 
   //when near markdown syntax , we need to be more careful
   private applyFormatSafely(format: FormatType): void {
