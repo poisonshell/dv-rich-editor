@@ -1,0 +1,199 @@
+
+.dv-rich-editor {
+  /* Layout***REMOVED***
+  direction: rtl;
+  text-align: right;
+  
+  /* Typography***REMOVED***
+  font-family: 'Noto Sans Dhivehi', 'MV Elaaf Normal', 'Faruma', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: common-ligatures contextual;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0.01em;
+  
+  /* Appearance***REMOVED***
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  
+  /* Behavior***REMOVED***
+  outline: none;
+  cursor: text;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  
+  /* Focus state***REMOVED***
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dv-rich-editor:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Placeholder styling***REMOVED***
+.dv-rich-editor[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #6c757d;
+  pointer-events: none;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Content styling***REMOVED***
+.dv-rich-editor h1,
+.dv-rich-editor h2,
+.dv-rich-editor h3,
+.dv-rich-editor h4,
+.dv-rich-editor h5,
+.dv-rich-editor h6 {
+  margin: 1em 0 0.5em 0;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.dv-rich-editor h1 { font-size: 2em; }
+.dv-rich-editor h2 { font-size: 1.75em; }
+.dv-rich-editor h3 { font-size: 1.5em; }
+.dv-rich-editor h4 { font-size: 1.25em; }
+.dv-rich-editor h5 { font-size: 1.1em; }
+.dv-rich-editor h6 { font-size: 1em; }
+
+.dv-rich-editor p {
+  margin: 0.5em 0;
+}
+
+.dv-rich-editor ul,
+.dv-rich-editor ol {
+  margin: 0.5em 0;
+  padding-right: 2em;
+  padding-left: 0;
+}
+
+.dv-rich-editor li {
+  margin: 0.25em 0;
+}
+
+.dv-rich-editor blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-right: 4px solid #ddd;
+  border-left: none;
+  background-color: #f8f9fa;
+  font-style: italic;
+}
+
+.dv-rich-editor code {
+  background-color: #f1f3f4;
+  border-radius: 3px;
+  padding: 0.125em 0.25em;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+}
+
+.dv-rich-editor pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 1em;
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+}
+
+.dv-rich-editor pre code {
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.dv-rich-editor a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.dv-rich-editor a:hover {
+  text-decoration: underline;
+}
+
+.dv-rich-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Text formatting***REMOVED***
+.dv-rich-editor strong,
+.dv-rich-editor b {
+  font-weight: bold;
+}
+
+.dv-rich-editor em,
+.dv-rich-editor i {
+  font-style: italic;
+}
+
+.dv-rich-editor u {
+  text-decoration: underline;
+}
+
+.dv-rich-editor del,
+.dv-rich-editor s {
+  text-decoration: line-through;
+}
+
+/* Selection***REMOVED***
+.dv-rich-editor::selection {
+  background-color: rgba(0, 123, 255, 0.3);
+}
+
+/* Dark mode support***REMOVED***
+@media (prefers-color-scheme: dark) {
+  .dv-rich-editor {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border-color: #444;
+  }
+  
+  .dv-rich-editor:focus {
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.25);
+  }
+  
+  .dv-rich-editor[data-placeholder]:empty::before {
+    color: #999;
+  }
+  
+  .dv-rich-editor blockquote {
+    background-color: #2a2a2a;
+    border-right-color: #555;
+  }
+  
+  .dv-rich-editor code {
+    background-color: #2a2a2a;
+  }
+  
+  .dv-rich-editor pre {
+    background-color: #2a2a2a;
+    border-color: #444;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .dv-rich-editor {
+    font-size: 1em; /* Use user memory preference for font size***REMOVED***
+    padding: 10px;
+  }
+} 

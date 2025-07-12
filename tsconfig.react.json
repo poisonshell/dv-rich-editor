@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "outDir": "./dist/react",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/react***REMOVED***/*",
+    "src/types***REMOVED***/*",
+    "src/editor/ThemeManager.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "examples",
+    "**/*.test.*",
+    "**/*.spec.*"
+  ]
+} 

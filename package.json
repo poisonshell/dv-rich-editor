@@ -1,0 +1,72 @@
+{
+  "name": "dv-rich-editor",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A lightweight Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react/index.esm.js",
+      "require": "./dist/react/index.js",
+      "types": "./dist/react/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "npm run clean && npm run compile",
+    "compile": "npm run compile:core && npm run compile:react",
+    "compile:core": "tsc && rollup -c",
+    "compile:react": "tsc -p tsconfig.react.json && rollup -c rollup.config.react.js && cp dist/react/react/index.d.ts dist/react/index.d.ts 2>/dev/null || true",
+    "bundle": "rollup -c && rollup -c rollup.config.react.js",
+    "clean": "rm -rf dist",
+    "dev": "tsc --watch",
+    "dev:react": "tsc -p tsconfig.react.json --watch",
+    "prepublishOnly": "npm run build",
+    "prepare": "npm run build"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/react": "^18.3.23",
+    "rollup": "^4.9.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/poisonshell/dv-rich-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/poisonshell/dv-rich-editor/issues"
+  },
+  "homepage": "https://github.com/poisonshell/dv-rich-editor/#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
