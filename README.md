@@ -14,8 +14,6 @@ This implementation differs significantly from most existing solutions. It combi
 - Implement Content Security Policy
 
 
-
-
 ## Installation
 
 ```bash
@@ -65,6 +63,8 @@ const editor = new DhivehiRichEditor({
 
 ### React
 
+#### Basic Usage
+
 ```tsx
 import { DVRichEditor } from 'dv-rich-editor/react';
 
@@ -77,6 +77,57 @@ function MyEditor() {
             onChange={setContent}
             theme={{ name: 'blue' }}
         />
+    );
+}
+```
+
+#### With Formatting (Hook)
+
+```tsx
+import { DVRichEditor, useDhivehiEditor } from 'dv-rich-editor/react';
+
+function EditorWithToolbar() {
+    const [content, setContent] = useState('');
+    const { applyFormat, isFormatActive } = useDhivehiEditor();
+    
+    return (
+        <div>
+            <button 
+                onClick={() => applyFormat('bold')}
+                className={isFormatActive('bold') ? 'active' : ''}
+            >
+                Bold
+            </button>
+            <DVRichEditor
+                placeholder="ލިޔުއްވާށެވެ..."
+                onChange={setContent}
+            />
+        </div>
+    );
+}
+```
+
+#### With Formatting (Ref)
+
+```tsx
+import { useRef } from 'react';
+import { DVRichEditor } from 'dv-rich-editor/react';
+
+function EditorWithRef() {
+    const editorRef = useRef(null);
+    const [content, setContent] = useState('');
+    
+    return (
+        <div>
+            <button onClick={() => editorRef.current?.applyFormat('bold')}>
+                Bold
+            </button>
+            <DVRichEditor
+                ref={editorRef}
+                placeholder="ލިޔުއްވާށެވެ..."
+                onChange={setContent}
+            />
+        </div>
     );
 }
 ```
