@@ -58,9 +58,7 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
             onImageUrlRequest: () => latestCallbacks.current.onImageUrlRequest?.() || Promise.resolve(''),
           };
 
-          console.log('🚀 Initializing editor with config:', config);
           editorRef.current = new DhivehiRichEditor(config);
-          console.log('✅ Editor initialized successfully:', editorRef.current);
   
           setEditorInstance(editorRef.current);
           
@@ -98,65 +96,60 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
     useImperativeHandle(ref, () => ({
       // Core methods
       setThaanaEnabled: (enabled: boolean) => {
-        console.log('🎯 setThaanaEnabled called:', enabled);
         editorRef.current?.setThaanaEnabled(enabled);
       },
       
       getMarkdown: () => {
         const result = editorRef.current?.getMarkdown() || '';
-        console.log('📄 getMarkdown called, result length:', result.length);
         return result;
       },
       
       setMarkdown: (content: string, preserveFocus?: boolean) => {
-        console.log('📝 setMarkdown called with content length:', content.length);
+
         editorRef.current?.setMarkdown(content, preserveFocus);
       },
       
       focus: () => {
-        console.log('🎯 focus called');
+
         editorRef.current?.focus();
       },
       
       blur: () => {
-        console.log('🎯 blur called');
+  
         editorRef.current?.blur();
       },
       
       insertText: (text: string) => {
-        console.log('✏️ insertText called:', text);
+
         editorRef.current?.insertText(text);
       },
       
       insertImage: (imageData: ImageData) => {
-        console.log('🖼️ insertImage called');
+     
         editorRef.current?.insertImage(imageData);
       },
       
       openImageDialog: () => {
-        console.log('🖼️ openImageDialog called');
+
         return editorRef.current?.openImageDialog() || Promise.resolve();
       },
       
       // FORMATTING METHODS - many issues here we need this for awhile debugging
       applyFormat: (format: FormatType) => {
-        console.log('🎯 applyFormat called with:', format);
-        console.log('📝 Editor instance:', editorRef.current);
-        console.log('🔧 Editor methods available:', editorRef.current ? Object.getOwnPropertyNames(editorRef.current) : 'none');
+     
         
         if (!editorRef.current) {
-          console.error('❌ Editor ref is null');
+      
           return;
         }
         
         if (!editorRef.current.applyFormat) {
-          console.error('❌ applyFormat method missing');
-          console.log('🔍 Available methods:', Object.keys(editorRef.current));
+ 
           return;
         }
         
         if (typeof editorRef.current.applyFormat !== 'function') {
-          console.error('❌ applyFormat is not a function, it is:', typeof editorRef.current.applyFormat);
+     
           return;
         }
         
@@ -170,30 +163,30 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
       },
       
       isFormatActive: (format: FormatType) => {
-        console.log('🔍 isFormatActive called with:', format);
+   
         
         if (!editorRef.current) {
-          console.error('❌ Editor ref is null for isFormatActive');
+ 
           return false;
         }
         
         if (!editorRef.current.isFormatActive) {
-          console.error('❌ isFormatActive method missing');
+  
           return false;
         }
         
         try {
           const result = editorRef.current.isFormatActive(format);
-          console.log('✅ isFormatActive result:', result);
+
           return result;
         } catch (error) {
-          console.error('❌ isFormatActive failed:', error);
+      
           return false;
         }
       },
       
       removeFormat: (format: FormatType) => {
-        console.log('🗑️ removeFormat called with:', format);
+   
         if (editorRef.current && editorRef.current.removeFormat) {
           editorRef.current.removeFormat(format);
         }

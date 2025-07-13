@@ -14,7 +14,8 @@ import { ThemeManager } from "./ThemeManager";
 import { EDITOR_STYLES, injectEditorStyles } from "../styles/editor-styles";
 
 ***REMOVED***
-
+***REMOVED***
+***REMOVED***
 export class DhivehiRichEditor implements EditorInstance {
   private container: HTMLElement;
   private editor!: HTMLDivElement;
@@ -23,6 +24,9 @@ export class DhivehiRichEditor implements EditorInstance {
   private config: EditorConfig;
   private suppressOnChange: boolean = false;
   private thaanaEnabled: boolean = true;
+  private mutationObserver?: MutationObserver;
+  private changeTimeout?: number;
+  private lastContent: string = "";
 
   constructor(config: EditorConfig) {
     this.config = config;
@@ -48,35 +52,97 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   private initializeEditor(): void {
-    // Create the main editor element
     this.editor = document.createElement("div");
     this.editor.contentEditable = "true";
     this.editor.className = `dv-rich-editor ${this.config.className || ""}`;
 
-    // Set placeholder
     if (this.config.placeholder) {
       this.editor.setAttribute("data-placeholder", this.config.placeholder);
     }
 
-    // Apply base styles from external styles file
+    // RTL improvements
+    this.editor.setAttribute("dir", "rtl");
+    this.editor.style.textAlign = "right";
+    this.editor.style.unicodeBidi = "plaintext";
+
     Object.assign(this.editor.style, EDITOR_STYLES.base);
-
-    // Add essential CSS styles for the editor
     this.injectEditorStyles();
-
-    // Apply theme and custom styling
+    this.applyRTLStyles();
     this.applyThemeAndStyling();
-
     this.container.appendChild(this.editor);
   }
 
+  private applyRTLStyles(): void {
+    // Inject RTL-specific styles
+    const styleId = 'dhivehi-rtl-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .dv-rich-editor {
+        /* Better text selection for RTL***REMOVED***
+        user-select: text;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        
+        /* Improve cursor behavior***REMOVED***
+        cursor: text !important;
+        
+        /* Better selection highlighting***REMOVED***
+        -webkit-text-fill-color: initial;
+        
+        /* RTL text rendering***REMOVED***
+        direction: rtl;
+        text-align: right;
+        unicode-bidi: plaintext;
+      }
+      
+      .dv-rich-editor * {
+        /* Ensure all child elements inherit RTL***REMOVED***
+        direction: inherit;
+        unicode-bidi: inherit;
+      }
+      
+      .dv-rich-editor ::selection {
+        /* Better selection visibility***REMOVED***
+        background: rgba(0, 123, 255, 0.25);
+        color: inherit;
+      }
+      
+      .dv-rich-editor ::-moz-selection {
+        background: rgba(0, 123, 255, 0.25);
+        color: inherit;
+      }
+      
+      /* Improve text cursor positioning***REMOVED***
+      .dv-rich-editor:focus {
+        outline: none;
+      }
+      
+      /* Better word-break for Thaana***REMOVED***
+      .dv-rich-editor {
+        word-break: keep-all;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      
+      /* Prevent text selection issues***REMOVED***
+      .dv-rich-editor img {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
   private injectEditorStyles(): void {
-    // Use external styles injection function
     injectEditorStyles();
   }
 
   private applyThemeAndStyling(): void {
-    // Apply theme and styling using ThemeManager
     ThemeManager.applyTheme(
       this.editor,
       this.container,
@@ -91,7 +157,6 @@ export class DhivehiRichEditor implements EditorInstance {
     themeName?: ThemeName,
     styling?: EditorStyling
   ): void {
-    // Update config
     if (theme) {
       this.config.theme = theme;
     } else if (themeName) {
@@ -102,7 +167,6 @@ export class DhivehiRichEditor implements EditorInstance {
       this.config.styling = styling;
     }
 
-    // Re-apply theme and styling
     ThemeManager.applyTheme(
       this.editor,
       this.container,
@@ -118,18 +182,14 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   private setupEventListeners(): void {
-    // Content change events
+    this.setupMutationObserver();
+
     this.editor.addEventListener("input", () => {
-      if (!this.suppressOnChange) {
-        const markdown = this.getMarkdown();
-        this.config.onChange?.(markdown);
-      }
+      this.handleContentChange("input");
     });
 
-    // Focus/blur events with ThaanaInput coordination
     this.editor.addEventListener("focus", () => {
       this.config.onFocus?.();
-      // Notify ThaanaInput about focus if needed
       if (this.thaanaEnabled) {
         this.updateThaanaVisualState();
       }
@@ -137,38 +197,184 @@ export class DhivehiRichEditor implements EditorInstance {
 
     this.editor.addEventListener("blur", () => {
       this.config.onBlur?.();
-      // ThaanaInput will handle its own buffer flushing on blur
+      this.handleContentChange("blur", true);
     });
 
-    // Initialize Thaana keyboard
-    this.thaanaInput.initialize(this.editor);
-    this.updateThaanaVisualState();
-
-    // keyboard event handling
     this.editor.addEventListener("keydown", (event) => {
       this.handleEnhancedKeydown(event);
     });
 
+    this.editor.addEventListener("keyup", (event) => {
+      if (["Enter", "Backspace", "Delete", "Space"].includes(event.key)) {
+        this.handleContentChange(`keyup-${event.key}`, true);
+      }
+    });
 
+    this.editor.addEventListener("paste", () => {
+      setTimeout(() => {
+        this.handleContentChange("paste", true);
+      }, 50);
+    });
+
+    // RTL selection improvements
+    this.setupRTLSelectionHelpers();
+
+    this.thaanaInput.initialize(this.editor);
+    this.updateThaanaVisualState();
+  }
+
+  private setupRTLSelectionHelpers(): void {
+    // Improve text selection for RTL
+    this.editor.addEventListener("mousedown", (event) => {
+      this.handleRTLMouseDown(event);
+    });
+
+    this.editor.addEventListener("selectstart", (event) => {
+      this.handleRTLSelectStart(event);
+    });
+
+    this.editor.addEventListener("selectionchange", () => {
+      this.handleRTLSelectionChange();
+    });
+
+    // Double-click for word selection in RTL
+    this.editor.addEventListener("dblclick", (event) => {
+      this.handleRTLDoubleClick(event);
+    });
+  }
+
+  private handleRTLMouseDown(event: MouseEvent): void {
+    // Force text cursor for better RTL selection
+    if (event.target === this.editor || (event.target as Element)?.closest('.dv-rich-editor')) {
+      this.editor.style.cursor = 'text';
+    }
+  }
+
+  private handleRTLSelectStart(event: Event): void {
+    // Prevent default selection behavior that might interfere with RTL
+    event.stopPropagation();
+  }
+
+  private handleRTLSelectionChange(): void {
+    // Normalize selection direction for RTL text
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    // Ensure consistent selection behavior
+    setTimeout(() => {
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        this.normalizeRTLSelection(range);
+      }
+    }, 0);
+  }
+
+  private handleRTLDoubleClick(event: MouseEvent): void {
+    event.preventDefault();
+    
+    // Custom word selection for RTL text
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = document.createRange();
+    const textNode = this.getTextNodeAtPoint(event.clientX, event.clientY);
+    
+    if (textNode && textNode.textContent) {
+      const clickOffset = this.getOffsetInTextNode(textNode, event.clientX, event.clientY);
+      const wordBounds = this.findRTLWordBounds(textNode.textContent, clickOffset);
+      
+      range.setStart(textNode, wordBounds.start);
+      range.setEnd(textNode, wordBounds.end);
+      
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  private normalizeRTLSelection(range: Range): void {
+    // Ensure selection works correctly with RTL text
+    if (range.collapsed) return;
+
+    const startContainer = range.startContainer;
+    const endContainer = range.endContainer;
+
+    // If selection spans multiple elements, normalize it
+    if (startContainer !== endContainer) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+
+  private getTextNodeAtPoint(x: number, y: number): Text | null {
+    const range = document.caretRangeFromPoint(x, y);
+    if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
+      return range.startContainer as Text;
+    }
+    return null;
+  }
+
+  private getOffsetInTextNode(textNode: Text, x: number, y: number): number {
+    const range = document.caretRangeFromPoint(x, y);
+    if (range && range.startContainer === textNode) {
+      return range.startOffset;
+    }
+    return 0;
+  }
+
+  private findRTLWordBounds(text: string, offset: number): { start: number; end: number } {
+    // RTL word boundary detection for Thaana
+    const thaanaWordSeparators = /[\s\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u061C\u200E\u200F]/;
+    
+    let start = offset;
+    let end = offset;
+
+    // Find start of word (going backwards)
+    while (start > 0 && !thaanaWordSeparators.test(text[start - 1])) {
+      start--;
+    }
+
+    // Find end of word (going forwards)
+    while (end < text.length && !thaanaWordSeparators.test(text[end])) {
+      end++;
+    }
+
+    return { start, end };
   }
 
   private handleEnhancedKeydown(event: KeyboardEvent): void {
-    // Handle markdown protection
     this.handleKeydownProtection(event);
 
-    // Handle Enter for Thaana content
+    // RTL selection keyboard shortcuts
+    if (event.ctrlKey || event.metaKey) {
+      switch (event.key) {
+        case 'a':
+        case 'A':
+          // Select all with better RTL handling
+          event.preventDefault();
+          this.selectAll();
+          return;
+        case 'd':
+        case 'D':
+          // Select current word
+          if (event.shiftKey) {
+            event.preventDefault();
+            this.selectCurrentWord();
+            return;
+          }
+          break;
+      }
+    }
+
     if (event.key === "Enter" && this.thaanaEnabled) {
       this.handleSmartEnter(event);
     }
   }
 
   private handleSmartEnter(event: KeyboardEvent): void {
-    // Let ThaanaInput flush its buffer before processing Enter
-    // The ThaanaInput will handle this automatically via its event listeners
-
-    // Add a small delay to ensure buffer is flushed
     setTimeout(() => {
-      // Additional logic for line breaks in RTL context if needed
       if (!this.suppressOnChange) {
         const markdown = this.getMarkdown();
         this.config.onChange?.(markdown);
@@ -176,13 +382,10 @@ export class DhivehiRichEditor implements EditorInstance {
     }, 10);
   }
 
-
-
   private updateThaanaVisualState(): void {
     this.editor.classList.toggle("thaana-enabled", this.thaanaEnabled);
     this.editor.classList.toggle("thaana-disabled", !this.thaanaEnabled);
 
-    // Update title attribute for accessibility
     const status = this.thaanaEnabled ? "enabled" : "disabled";
     this.editor.setAttribute(
       "title",
@@ -190,30 +393,74 @@ export class DhivehiRichEditor implements EditorInstance {
     );
   }
 
-  public updateThaanaKeyMap(keyMap: Record<string, string>): void {
-    this.thaanaInput.updateKeyMap(keyMap);
-  }
+  private setupMutationObserver(): void {
+    this.mutationObserver = new MutationObserver((mutations) => {
+      const hasContentChanges = mutations.some((mutation) => {
+        if (mutation.type === "attributes") {
+          const attrName = mutation.attributeName;
+          if (attrName === "style") {
+            const target = mutation.target as Element;
+            const style = target.getAttribute("style") || "";
+            if (style.includes("caret-color") || style.includes("selection")) {
+              return false;
+            }
+          }
+          return ["class", "style"].includes(attrName || "");
+        }
 
-  public getThaanaConfig(): any {
-    return this.thaanaInput.getConfig();
-  }
+        return (
+          mutation.type === "childList" || mutation.type === "characterData"
+        );
+      });
 
-  public convertContentToThaana(): void {
-    const currentContent = this.editor.textContent || "";
-    if (currentContent) {
-      const convertedContent = this.thaanaInput.convertToThaana(currentContent);
-      this.editor.textContent = convertedContent;
-
-      // Trigger change event
-      if (!this.suppressOnChange) {
-        const markdown = this.getMarkdown();
-        this.config.onChange?.(markdown);
+      if (hasContentChanges && !this.suppressOnChange) {
+        this.handleContentChange("mutation");
       }
-    }
+    });
+
+    this.mutationObserver.observe(this.editor, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["style", "class", "data-*"],
+      characterDataOldValue: false,
+      attributeOldValue: false,
+    });
   }
 
+  private handleContentChange(source: string, immediate: boolean = false): void {
+    if (this.suppressOnChange) {
+      return;
+    }
 
-  // Protect markdown syntax from accidental deletion , image and links may get corrupeted easily if not protected
+    if (this.changeTimeout) {
+      clearTimeout(this.changeTimeout);
+    }
+
+    let delay = 5;
+    if (immediate) {
+      delay = 0;
+    } else if (source.startsWith("keyup-")) {
+      delay = 10;
+    } else if (source === "paste") {
+      delay = 20;
+    }
+
+    this.changeTimeout = window.setTimeout(() => {
+      try {
+        const newContent = this.getMarkdown();
+
+        if (newContent !== this.lastContent) {
+          this.lastContent = newContent;
+          this.config.onChange?.(newContent);
+        }
+      } catch (error) {
+        console.error("Error in handleContentChange:", error);
+      }
+    }, delay);
+  }
+
   private handleKeydownProtection(event: KeyboardEvent): void {
     if (event.key === "Backspace") {
       const selection = window.getSelection();
@@ -221,7 +468,6 @@ export class DhivehiRichEditor implements EditorInstance {
         const range = selection.getRangeAt(0);
         const textBefore = this.getTextBeforeCursor(range);
 
-        // Check if we're about to delete markdown syntax
         if (this.isMarkdownSyntax(textBefore)) {
           event.preventDefault();
           this.handleProtectedBackspace();
@@ -239,16 +485,9 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   private isMarkdownSyntax(text: string): boolean {
-    // Basic markdown syntax patterns to protect
     const patterns = [
-      /\*\*$/, // Bold
-      /\*$/, // Italic
-      /~~$/, // Strikethrough
-      /#+ $/, // Headers
-      /!\[.*\]\(.*\)$/, // Images
-      /\[.*\]\(.*\)$/, // Links
+      /\*\*$/, /\*$/, /~~$/, /#+ $/, /!\[.*\]\(.*\)$/, /\[.*\]\(.*\)$/
     ];
-
     return patterns.some((pattern) => pattern.test(text));
   }
 
@@ -260,7 +499,6 @@ export class DhivehiRichEditor implements EditorInstance {
     const textBefore = this.getTextBeforeCursor(range);
     const textAfter = this.getTextAfterCursor(range);
 
-    // Check if we're within markdown syntax boundaries
     return (
       this.isMarkdownSyntax(textBefore) || this.isMarkdownSyntax(textAfter)
     );
@@ -281,17 +519,10 @@ export class DhivehiRichEditor implements EditorInstance {
     const range = selection.getRangeAt(0);
     const container = range.startContainer;
 
-    // Check if we're inside a markdown element
     if (container.nodeType === Node.TEXT_NODE && container.parentElement) {
       const parentTag = container.parentElement.tagName.toLowerCase();
       return [
-        "strong",
-        "em",
-        "u",
-        "strike",
-        "code",
-        "pre",
-        "blockquote",
+        "strong", "em", "u", "strike", "code", "pre", "blockquote",
       ].includes(parentTag);
     }
 
@@ -299,8 +530,6 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   private handleProtectedBackspace(): void {
-    // Safely handle backspace when near markdown syntax
-    // For now, just move cursor back one position
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -309,7 +538,6 @@ export class DhivehiRichEditor implements EditorInstance {
         range.collapse(true);
       }
 
-      // Trigger change event
       if (!this.suppressOnChange) {
         const markdown = this.getMarkdown();
         this.config.onChange?.(markdown);
@@ -318,26 +546,136 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   public getMarkdown(): string {
-    return this.markdownFormatter.htmlToMarkdown(this.editor.innerHTML);
+    const htmlContent = this.editor.innerHTML;
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = htmlContent;
+
+    let markdown = this.processElementToMarkdown(tempDiv);
+
+    markdown = markdown
+      .replace(/\u200B/g, "")
+      .replace(/\uFEFF/g, "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/[ \t]+$/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\*\*[ \t]+/g, "**")
+      .replace(/[ \t]+\*\*/g, "**")
+      .replace(/\*[ \t]+/g, "*")
+      .replace(/[ \t]+\*/g, "*")
+      .replace(/~~[ \t]+/g, "~~")
+      .replace(/[ \t]+~~/g, "~~")
+      .replace(/^\s+|\s+$/g, "");
+
+    return markdown;
+  }
+
+  private processElementToMarkdown(element: Element): string {
+    let result = "";
+
+    for (const node of Array.from(element.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        result += node.textContent || "";
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        const tagName = el.tagName.toLowerCase();
+
+        switch (tagName) {
+          case "br":
+            result += "\n";
+            break;
+          case "div":
+            const divContent = this.processElementToMarkdown(el);
+            if (result && !result.endsWith("\n")) {
+              result += "\n";
+            }
+            result += divContent;
+            if (!result.endsWith("\n")) {
+              result += "\n";
+            }
+            break;
+          case "p":
+            const pContent = this.processElementToMarkdown(el);
+            if (result && !result.endsWith("\n")) {
+              result += "\n";
+            }
+            result += pContent;
+            if (!result.endsWith("\n")) {
+              result += "\n";
+            }
+            break;
+          case "strong":
+          case "b":
+            result += "**" + this.processElementToMarkdown(el) + "**";
+            break;
+          case "em":
+          case "i":
+            result += "*" + this.processElementToMarkdown(el) + "*";
+            break;
+          case "u":
+            result += "<u>" + this.processElementToMarkdown(el) + "</u>";
+            break;
+          case "strike":
+          case "s":
+          case "del":
+            result += "~~" + this.processElementToMarkdown(el) + "~~";
+            break;
+          case "code":
+            result += "`" + this.processElementToMarkdown(el) + "`";
+            break;
+          case "pre":
+            result += "```\n" + this.processElementToMarkdown(el) + "\n```";
+            break;
+          case "h1":
+            result += "# " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "h2":
+            result += "## " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "h3":
+            result += "### " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "h4":
+            result += "#### " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "h5":
+            result += "##### " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "h6":
+            result += "###### " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "blockquote":
+            result += "> " + this.processElementToMarkdown(el) + "\n";
+            break;
+          case "ul":
+          case "ol":
+          case "li":
+            result += this.processElementToMarkdown(el);
+            break;
+          case "span":
+            result += this.processElementToMarkdown(el);
+            break;
+          default:
+            result += this.processElementToMarkdown(el);
+            break;
+        }
+      }
+    }
+
+    return result;
   }
 
   public setMarkdown(content: string, preserveFocus: boolean = false): void {
-    // Let ThaanaInput handle conversion naturally through its event system
     const html = this.markdownFormatter.markdownToHtml(content);
-
-    // Store current focus state
     const hadFocus = this.editor === document.activeElement;
     const selection = hadFocus ? this.getSelection() : null;
 
-    // Update content
     this.suppressOnChange = true;
     this.editor.innerHTML = html;
     this.suppressOnChange = false;
 
-    // Restore focus if requested and editor had focus
     if (preserveFocus && hadFocus) {
       this.editor.focus();
-      // more work needed here , kind of a hack
     }
   }
 
@@ -350,7 +688,6 @@ export class DhivehiRichEditor implements EditorInstance {
   }
 
   public insertText(text: string): void {
-    // Let ThaanaInput handle conversion naturally through its event system
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -360,126 +697,326 @@ export class DhivehiRichEditor implements EditorInstance {
     }
   }
 
-
   public insertListItem(type: "bullet" | "numbered" = "bullet"): void {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
-    const textNode = range.startContainer;
+    const selectedText = selection.toString();
+    const marker = this.getListMarker(type, range);
 
-    // Determine list marker
-    const marker = type === "bullet" ? "- " : "1. ";
-
-    // Check if we are at the start of a line
-    const atLineStart =
-      range.startOffset === 0 ||
-      (textNode.nodeType === Node.TEXT_NODE &&
-        (textNode.textContent || "")
-          .substring(0, range.startOffset)
-          .endsWith("\n"));
-
-    const listText = atLineStart ? marker : `\n${marker}`;
-
-    // Insert list marker (no Thaana conversion for markdown syntax)
-    const selection2 = window.getSelection();
-    if (selection2 && selection2.rangeCount > 0) {
-      const range2 = selection2.getRangeAt(0);
-      range2.deleteContents();
-      range2.insertNode(document.createTextNode(listText));
-      range2.collapse(false);
+    if (selectedText && selectedText.trim()) {
+      this.addBulletsToSelection(selectedText, marker, range, type);
+    } else {
+      this.addBulletAtCursor(marker, range);
     }
 
-    // Trigger change event
     if (!this.suppressOnChange) {
       const markdown = this.getMarkdown();
       this.config.onChange?.(markdown);
     }
   }
 
+  private addBulletsToSelection(
+    selectedText: string,
+    marker: string,
+    range: Range,
+    type: "bullet" | "numbered"
+  ): void {
+    const lines = selectedText.split("\n");
+    let currentNumber = 1;
 
-  // SIMPLE FIX: Replace your applyFormat method with this
+    if (type === "numbered") {
+      const numberMatch = marker.match(/^(\d+)\. /);
+      if (numberMatch) {
+        currentNumber = parseInt(numberMatch[1], 10);
+      }
+    }
 
-public applyFormat(format: FormatType): void {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
+    const bulletedLines = lines.map((line, index) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine === "") {
+        return "";
+      }
 
-  const selectedText = selection.toString();
+      if (trimmedLine.startsWith("- ") || /^\d+\. /.test(trimmedLine)) {
+        return line;
+      }
 
-  // Check if we're in or near markdown syntax - if so, be more careful
-  if (this.isInMarkdownSyntax() || this.isNearMarkdownSyntax()) {
-    this.applyFormatSafely(format);
-    return;
+      if (type === "numbered") {
+        const numberMarker = `${currentNumber + index}. `;
+        return numberMarker + trimmedLine;
+      } else {
+        return marker + trimmedLine;
+      }
+    });
+
+    const bulletedText = bulletedLines.join("\n");
+
+    try {
+      const textNode = document.createTextNode(bulletedText);
+      range.deleteContents();
+      range.insertNode(textNode);
+
+      const selection = window.getSelection();
+      if (selection) {
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    } catch (error) {
+      console.error("Error adding bullets to selection:", error);
+    }
   }
 
-  // Don't format if no text is selected
-  if (!selectedText || selectedText.trim() === '') {
-    console.log('⚠️ Please select text before applying formatting');
-    return;
+  private addBulletAtCursor(marker: string, range: Range): void {
+    const atLineStart = this.isAtLineStart(range);
+    const bulletText = atLineStart ? marker : `\n${marker}`;
+
+    try {
+      const textNode = document.createTextNode(bulletText);
+      range.insertNode(textNode);
+
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        setTimeout(() => {
+          const newRange = document.createRange();
+          newRange.setStartAfter(textNode);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+
+          if (this.editor) {
+            this.editor.focus();
+          }
+        }, 5);
+      }
+    } catch (error) {
+      console.error("Error adding bullet at cursor:", error);
+    }
   }
 
-  // Apply formatting using execCommand
-  switch (format) {
-    case "bold":
-      document.execCommand("bold");
-      this.breakOutOfFormatting();
-      break;
-    case "italic":
-      document.execCommand("italic");
-      this.breakOutOfFormatting();
-      break;
-    case "underline":
-      document.execCommand("underline");
-      this.breakOutOfFormatting();
-      break;
-    case "strikethrough":
-      document.execCommand("strikeThrough");
-      this.breakOutOfFormatting();
-      break;
-    case "image":
-      this.openImageDialog();
-      break;
-    case "bullet-list":
-      this.insertListItem("bullet");
-      break;
-    case "numbered-list":
-      this.insertListItem("numbered");
-      break;
-  }
-}
+  private getListMarker(type: "bullet" | "numbered", range: Range): string {
+    if (type === "bullet") {
+      return "- ";
+    }
 
-***REMOVED***
- * Break out of formatting state after applying formatting
-***REMOVED***
-private breakOutOfFormatting(): void {
-  setTimeout(() => {
+    const nextNumber = this.getNextListNumber(range);
+    return `${nextNumber}. `;
+  }
+
+  private getNextListNumber(range: Range): number {
+    const editorContent = this.editor.textContent || "";
+    const cursorPosition = this.getCursorPosition(range);
+    const lines = editorContent.split("\n");
+    let currentLineIndex = 0;
+    let characterCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (characterCount + lines[i].length >= cursorPosition) {
+        currentLineIndex = i;
+        break;
+      }
+      characterCount += lines[i].length + 1;
+    }
+
+    let lastNumber = 0;
+
+    for (let i = currentLineIndex; i >= 0; i--) {
+      const line = lines[i].trim();
+      const numberMatch = line.match(/^(\d+)\. /);
+
+      if (numberMatch) {
+        lastNumber = parseInt(numberMatch[1], 10);
+        break;
+      }
+
+      if (line && !line.startsWith("-") && !numberMatch) {
+        break;
+      }
+    }
+
+    return lastNumber + 1;
+  }
+
+  private getCursorPosition(range: Range): number {
+    const rangeCopy = range.cloneRange();
+    rangeCopy.selectNodeContents(this.editor);
+    rangeCopy.setEnd(range.startContainer, range.startOffset);
+    return rangeCopy.toString().length;
+  }
+
+  private isAtLineStart(range: Range): boolean {
+    const container = range.startContainer;
+    const offset = range.startOffset;
+
+    if (container.nodeType === Node.TEXT_NODE) {
+      const textContent = container.textContent || "";
+
+      if (offset === 0) {
+        return true;
+      }
+
+      const charBefore = textContent.charAt(offset - 1);
+      return charBefore === "\n";
+    }
+
+    return offset === 0;
+  }
+
+  private applyTextFormatting(format: string, selectedText: string): void {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
-    
+
     const range = selection.getRangeAt(0);
+    const formattedElement = this.createFormattedElement(format, selectedText);
     
-    // Insert a zero-width space with normal formatting to break the state
-    const breakElement = document.createElement('span');
-    breakElement.style.fontWeight = 'normal';
-    breakElement.style.fontStyle = 'normal';
-    breakElement.style.textDecoration = 'none';
-    breakElement.appendChild(document.createTextNode('\u200B')); // Zero-width space
+    range.extractContents();
+    range.insertNode(formattedElement);
     
-    // Insert at cursor position
-    range.collapse(false); // Move to end of selection
-    range.insertNode(breakElement);
-    
-    // Position cursor after the break element
-    range.setStartAfter(breakElement);
-    range.setEndAfter(breakElement);
+    range.setStartAfter(formattedElement);
+    range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
     
-    console.log('🔄 Broke out of formatting state');
-  }, 10);
-}
+    if (!this.suppressOnChange) {
+      setTimeout(() => {
+        const markdown = this.getMarkdown();
+        this.config.onChange?.(markdown);
+      }, 10);
+    }
+  }
 
-  //when near markdown syntax , we need to be more careful
+  private createFormattedElement(format: string, text: string): HTMLElement {
+    let element: HTMLElement;
+    
+    switch (format) {
+      case "bold":
+        element = document.createElement('strong');
+        break;
+      case "italic":
+        element = document.createElement('em');
+        break;
+      case "underline":
+        element = document.createElement('u');
+        break;
+      case "strikethrough":
+        element = document.createElement('s');
+        break;
+      default:
+        element = document.createElement('span');
+    }
+    
+    element.textContent = text;
+    return element;
+  }
+
+  private getFormattedLength(format: string): number {
+    switch (format) {
+      case "bold":
+        return 4;
+      case "italic":
+        return 2;
+      case "underline":
+        return 7;
+      case "strikethrough":
+        return 4;
+      default:
+        return 0;
+    }
+  }
+
+  private getTextPosition(container: Node, offset: number): number {
+    const range = document.createRange();
+    range.selectNodeContents(this.editor);
+    range.setEnd(container, offset);
+    return range.toString().length;
+  }
+
+  private setCursorPosition(textOffset: number): void {
+    const walker = document.createTreeWalker(
+      this.editor,
+      NodeFilter.SHOW_TEXT,
+      null,
+    );
+    
+    let currentOffset = 0;
+    let targetNode: Node | null = null;
+    let targetOffset = 0;
+    
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const nodeLength = node.textContent?.length || 0;
+      
+      if (currentOffset + nodeLength >= textOffset) {
+        targetNode = node;
+        targetOffset = textOffset - currentOffset;
+        break;
+      }
+      
+      currentOffset += nodeLength;
+    }
+    
+    if (targetNode) {
+      const range = document.createRange();
+      range.setStart(targetNode, targetOffset);
+      range.collapse(true);
+      
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+
+  public applyFormat(format: FormatType): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const selectedText = selection.toString();
+
+    if (this.isInMarkdownSyntax() || this.isNearMarkdownSyntax()) {
+      this.applyFormatSafely(format);
+      return;
+    }
+
+    const allowWithoutSelection = ["bullet-list", "numbered-list", "image"];
+    
+    if (
+      (!selectedText || selectedText.trim() === "") &&
+      !allowWithoutSelection.includes(format)
+    ) {
+      return;
+    }
+
+    switch (format) {
+      case "bold":
+      case "italic":
+      case "underline":
+      case "strikethrough":
+        if (!selectedText) return;
+        this.applyTextFormatting(format, selectedText);
+        break;
+      case "image":
+        this.openImageDialog();
+        break;
+      case "bullet-list":
+        this.insertListItem("bullet");
+        break;
+      case "numbered-list":
+        this.insertListItem("numbered");
+        break;
+    }
+  }
+
   private applyFormatSafely(format: FormatType): void {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
@@ -487,59 +1024,30 @@ private breakOutOfFormatting(): void {
     const selectedText = selection.toString();
     if (!selectedText) return;
 
-    let formattedText = "";
-
     switch (format) {
       case "bold":
-        formattedText = `**${selectedText}**`;
-        break;
       case "italic":
-        formattedText = `*${selectedText}*`;
-        break;
       case "underline":
-        formattedText = `<u>${selectedText}</u>`;
-        break;
       case "strikethrough":
-        formattedText = `~~${selectedText}~~`;
+        this.applyTextFormatting(format, selectedText);
         break;
       case "image":
         this.openImageDialog();
-        return;
+        break;
       case "bullet-list":
         this.insertListItem("bullet");
-        return;
+        break;
       case "numbered-list":
         this.insertListItem("numbered");
-        return;
-      default:
-        return;
-    }
-
-    // Replace selected text with formatted version
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-
-    // Add line breaks around formatting to protect from RTL issues
-    const protectedText = ` ${formattedText} `;
-    range.insertNode(document.createTextNode(protectedText));
-
-    // Clear selection
-    selection.removeAllRanges();
-
-    // Trigger change event
-    if (!this.suppressOnChange) {
-      const markdown = this.getMarkdown();
-      this.config.onChange?.(markdown);
+        break;
     }
   }
 
   public removeFormat(format: FormatType): void {
-    // Remove specific formatting
-    this.applyFormat(format); // Toggle off
+    this.applyFormat(format);
   }
 
   public isFormatActive(format: FormatType): boolean {
-    // Check if format is currently active at cursor position
     switch (format) {
       case "bold":
         return document.queryCommandState("bold");
@@ -555,22 +1063,17 @@ private breakOutOfFormatting(): void {
   }
 
   public insertImage(imageData: ImageData): void {
-    // Create markdown image syntax with protective line breaks
     let markdownImage = `![${
       imageData.alt || this.config.image?.defaultAltText || ""
     }](${imageData.src}`;
 
-    // Add title if provided
     if (imageData.title) {
       markdownImage += ` "${imageData.title}"`;
     }
 
     markdownImage += ")";
-
-    // Add line breaks before and after to protect from RTL corruption
     const protectedMarkdown = `\n${markdownImage}\n`;
 
-    // Insert the protected markdown at cursor position (no Thaana conversion for URLs)
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -579,13 +1082,11 @@ private breakOutOfFormatting(): void {
       range.collapse(false);
     }
 
-    // Trigger content change
     const markdown = this.getMarkdown();
     this.config.onChange?.(markdown);
   }
 
   public async openImageDialog(): Promise<void> {
-    // Check if there's a global image URL handler
     if (this.config.onImageUrlRequest) {
       try {
         const imageUrl = await this.config.onImageUrlRequest();
@@ -601,10 +1102,7 @@ private breakOutOfFormatting(): void {
       return;
     }
 
-    // Fallback to simple prompt dialog
-
-    // BAD idea  , need to fix this
-    const url = prompt("photo URL:", "https://");
+    const url = prompt("Photo URL:", "https://");
     if (url && url.trim()) {
       const alt = prompt("Alt text:", "alt");
       this.insertImage({
@@ -628,6 +1126,89 @@ private breakOutOfFormatting(): void {
     };
   }
 
+  public selectText(start: number, end: number): void {
+    // Helper method for programmatic text selection in RTL context
+    const textContent = this.editor.textContent || '';
+    if (start < 0 || end > textContent.length || start > end) {
+      return;
+    }
+
+    const walker = document.createTreeWalker(
+      this.editor,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentOffset = 0;
+    let startNode: Node | null = null;
+    let endNode: Node | null = null;
+    let startNodeOffset = 0;
+    let endNodeOffset = 0;
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const nodeLength = node.textContent?.length || 0;
+
+      if (!startNode && currentOffset + nodeLength >= start) {
+        startNode = node;
+        startNodeOffset = start - currentOffset;
+      }
+
+      if (!endNode && currentOffset + nodeLength >= end) {
+        endNode = node;
+        endNodeOffset = end - currentOffset;
+        break;
+      }
+
+      currentOffset += nodeLength;
+    }
+
+    if (startNode && endNode) {
+      const range = document.createRange();
+      range.setStart(startNode, startNodeOffset);
+      range.setEnd(endNode, endNodeOffset);
+
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+
+  public selectAll(): void {
+    // Select all text with proper RTL handling
+    const range = document.createRange();
+    range.selectNodeContents(this.editor);
+    
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  public selectCurrentWord(): void {
+    // Select the word at current cursor position
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const textNode = range.startContainer;
+
+    if (textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+      const offset = range.startOffset;
+      const wordBounds = this.findRTLWordBounds(textNode.textContent, offset);
+      
+      const newRange = document.createRange();
+      newRange.setStart(textNode, wordBounds.start);
+      newRange.setEnd(textNode, wordBounds.end);
+      
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  }
+
   public async copyToClipboard(): Promise<boolean> {
     const content = this.getMarkdown();
     if (!content) {
@@ -639,7 +1220,6 @@ private breakOutOfFormatting(): void {
         await navigator.clipboard.writeText(content);
         return true;
       } else {
-        // Fallback for older browsers
         return this.fallbackCopy(content);
       }
     } catch (error) {
@@ -647,7 +1227,6 @@ private breakOutOfFormatting(): void {
       return this.fallbackCopy(content);
     }
   }
-
 
   public async pasteFromClipboard(): Promise<boolean> {
     try {
@@ -665,11 +1244,7 @@ private breakOutOfFormatting(): void {
     }
   }
 
- 
-  public appendContent(
-    content: string
-  ): void {
-    // Let ThaanaInput handle conversion naturally through its event system
+  public appendContent(content: string): void {
     const currentMarkdown = this.getMarkdown();
     const newContent = currentMarkdown
       ? currentMarkdown + "\n" + content
@@ -677,8 +1252,6 @@ private breakOutOfFormatting(): void {
     this.setMarkdown(newContent);
   }
 
-
-  //fallback copy method for older browsers
   private fallbackCopy(content: string): boolean {
     const textarea = document.createElement("textarea");
     textarea.value = content;
@@ -698,30 +1271,61 @@ private breakOutOfFormatting(): void {
     }
   }
 
-
   public clear(): void {
-    // Store focus state
     const hadFocus = this.editor === document.activeElement;
 
-    // Clear content without triggering input event
     this.suppressOnChange = true;
     this.editor.innerHTML = "";
     this.suppressOnChange = false;
 
-    // Restore focus
     if (hadFocus) {
       this.editor.focus();
     }
 
-    // Manually trigger onChange with empty content
     this.config.onChange?.("");
   }
 
   public destroy(): void {
-    // Clean up Thaana input listeners
-    this.thaanaInput.destroy();
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = undefined;
+    }
 
-    // Clean up event listeners and remove editor from DOM
+    if (this.changeTimeout) {
+      clearTimeout(this.changeTimeout);
+      this.changeTimeout = undefined;
+    }
+
+    const remainingEditors = document.querySelectorAll('.dv-rich-editor');
+    if (remainingEditors.length <= 1) {
+      const rtlStyles = document.getElementById('dhivehi-rtl-styles');
+      if (rtlStyles) {
+        rtlStyles.remove();
+      }
+    }
+
+    this.thaanaInput.destroy();
     this.editor.remove();
+  }
+
+  public updateThaanaKeyMap(keyMap: Record<string, string>): void {
+    this.thaanaInput.updateKeyMap(keyMap);
+  }
+
+  public getThaanaConfig(): any {
+    return this.thaanaInput.getConfig();
+  }
+
+  public convertContentToThaana(): void {
+    const currentContent = this.editor.textContent || "";
+    if (currentContent) {
+      const convertedContent = this.thaanaInput.convertToThaana(currentContent);
+      this.editor.textContent = convertedContent;
+
+      if (!this.suppressOnChange) {
+        const markdown = this.getMarkdown();
+        this.config.onChange?.(markdown);
+      }
+    }
   }
 }
