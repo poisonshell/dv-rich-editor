@@ -1,10 +1,23 @@
 
 .dv-rich-editor {
-  /* Layout***REMOVED***
+
   direction: rtl;
   text-align: right;
+  unicode-bidi: plaintext;
   
-  /* Typography***REMOVED***
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  
+  cursor: text !important;
+  
+  -webkit-text-fill-color: initial;
+  
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+
   font-family: 'Noto Sans Dhivehi', 'MV Elaaf Normal', 'Faruma', Arial, sans-serif;
   font-size: 16px;
   line-height: 1.6;
@@ -16,7 +29,7 @@
   font-variant-numeric: lining-nums;
   letter-spacing: 0.01em;
   
-  /* Appearance***REMOVED***
+ 
   min-height: 100px;
   padding: 12px;
   border: 1px solid #ccc;
@@ -24,22 +37,28 @@
   background: white;
   color: #333;
   
-  /* Behavior***REMOVED***
+
   outline: none;
   cursor: text;
   overflow-wrap: break-word;
   word-wrap: break-word;
   
-  /* Focus state***REMOVED***
+
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dv-rich-editor * {
+  direction: inherit;
+  unicode-bidi: inherit;
 }
 
 .dv-rich-editor:focus {
   border-color: #007bff;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  outline: none;
 }
 
-/* Placeholder styling***REMOVED***
+
 .dv-rich-editor[data-placeholder]:empty::before {
   content: attr(data-placeholder);
   color: #6c757d;
@@ -48,7 +67,7 @@
   opacity: 0.7;
 }
 
-/* Content styling***REMOVED***
+
 .dv-rich-editor h1,
 .dv-rich-editor h2,
 .dv-rich-editor h3,
@@ -131,9 +150,11 @@
   max-width: 100%;
   height: auto;
   border-radius: 4px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-/* Text formatting***REMOVED***
+
 .dv-rich-editor strong,
 .dv-rich-editor b {
   font-weight: bold;
@@ -153,12 +174,18 @@
   text-decoration: line-through;
 }
 
-/* Selection***REMOVED***
+
 .dv-rich-editor::selection {
-  background-color: rgba(0, 123, 255, 0.3);
+  background: rgba(0, 123, 255, 0.25);
+  color: inherit;
 }
 
-/* Dark mode support***REMOVED***
+.dv-rich-editor ::-moz-selection {
+  background: rgba(0, 123, 255, 0.25);
+  color: inherit;
+}
+
+
 @media (prefers-color-scheme: dark) {
   .dv-rich-editor {
     background-color: #1e1e1e;
@@ -193,7 +220,7 @@
 
 @media (max-width: 768px) {
   .dv-rich-editor {
-    font-size: 1em; /* Use user memory preference for font size***REMOVED***
+    font-size: 1em; 
     padding: 10px;
   }
 } 

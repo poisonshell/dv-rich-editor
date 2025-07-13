@@ -275,7 +275,6 @@ export class ThemeManager {
     const { colors, spacing } = theme;
 
     const css = `
-      /* Theme-based styling***REMOVED***
       .dv-rich-editor {
         ${colors?.background ? `background-color: ${colors.background};` : ""}
         ${colors?.text ? `color: ${colors.text};` : ""}

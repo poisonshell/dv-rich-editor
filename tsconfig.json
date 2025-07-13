@@ -23,12 +23,12 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "src***REMOVED***/*"
+    "src/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "docs/examples",
-    "src/react***REMOVED***/*"
+    "src/react/*"
   ]
 } 

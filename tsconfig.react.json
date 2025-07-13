@@ -10,8 +10,8 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/react***REMOVED***/*",
-    "src/types***REMOVED***/*",
+    "src/react/*",
+    "src/types/*",
     "src/editor/ThemeManager.ts"
   ],
   "exclude": [

@@ -13,9 +13,8 @@ import { MarkdownFormatter } from "../markdown/MarkdownFormatter";
 import { ThemeManager } from "./ThemeManager";
 import { EDITOR_STYLES, injectEditorStyles } from "../styles/editor-styles";
 
-***REMOVED***
-***REMOVED***
-***REMOVED***
+//core editor class
+
 export class DhivehiRichEditor implements EditorInstance {
   private container: HTMLElement;
   private editor!: HTMLDivElement;
@@ -67,76 +66,11 @@ export class DhivehiRichEditor implements EditorInstance {
 
     Object.assign(this.editor.style, EDITOR_STYLES.base);
     this.injectEditorStyles();
-    this.applyRTLStyles();
     this.applyThemeAndStyling();
     this.container.appendChild(this.editor);
   }
 
-  private applyRTLStyles(): void {
-    // Inject RTL-specific styles
-    const styleId = 'dhivehi-rtl-styles';
-    if (document.getElementById(styleId)) return;
 
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .dv-rich-editor {
-        /* Better text selection for RTL***REMOVED***
-        user-select: text;
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        
-        /* Improve cursor behavior***REMOVED***
-        cursor: text !important;
-        
-        /* Better selection highlighting***REMOVED***
-        -webkit-text-fill-color: initial;
-        
-        /* RTL text rendering***REMOVED***
-        direction: rtl;
-        text-align: right;
-        unicode-bidi: plaintext;
-      }
-      
-      .dv-rich-editor * {
-        /* Ensure all child elements inherit RTL***REMOVED***
-        direction: inherit;
-        unicode-bidi: inherit;
-      }
-      
-      .dv-rich-editor ::selection {
-        /* Better selection visibility***REMOVED***
-        background: rgba(0, 123, 255, 0.25);
-        color: inherit;
-      }
-      
-      .dv-rich-editor ::-moz-selection {
-        background: rgba(0, 123, 255, 0.25);
-        color: inherit;
-      }
-      
-      /* Improve text cursor positioning***REMOVED***
-      .dv-rich-editor:focus {
-        outline: none;
-      }
-      
-      /* Better word-break for Thaana***REMOVED***
-      .dv-rich-editor {
-        word-break: keep-all;
-        overflow-wrap: break-word;
-        white-space: pre-wrap;
-      }
-      
-      /* Prevent text selection issues***REMOVED***
-      .dv-rich-editor img {
-        user-select: none;
-        -webkit-user-select: none;
-      }
-    `;
-    
-    document.head.appendChild(style);
-  }
 
   private injectEditorStyles(): void {
     injectEditorStyles();
@@ -1296,13 +1230,7 @@ export class DhivehiRichEditor implements EditorInstance {
       this.changeTimeout = undefined;
     }
 
-    const remainingEditors = document.querySelectorAll('.dv-rich-editor');
-    if (remainingEditors.length <= 1) {
-      const rtlStyles = document.getElementById('dhivehi-rtl-styles');
-      if (rtlStyles) {
-        rtlStyles.remove();
-      }
-    }
+    // RTL styles are now handled in CSS file, no need to clean up dynamic styles
 
     this.thaanaInput.destroy();
     this.editor.remove();
