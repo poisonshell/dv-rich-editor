@@ -1,13 +1,10 @@
 
-export { DVRichEditor, default as DhivehiRichEditor } from './DhivehiRichEditorReact';
-export { useDhivehiEditor } from './hooks/useDhivehiEditor';
+import type { 
+  DhivehiRichEditorProps, 
+  DhivehiRichEditorRef, 
+} from './DhivehiRichEditorReact';
 
-
-export { ThemeManager } from '../editor/ThemeManager';
-
-export type { DhivehiRichEditorProps, DhivehiRichEditorRef } from './DhivehiRichEditorReact';
-
-export type {
+import type {
   EditorConfig,
   EditorInstance,
   ImageConfig,
@@ -19,4 +16,32 @@ export type {
   EditorTheme,
   EditorStyling,
   ThemeName
-} from '../types'; 
+} from '../types';
+
+export { DVRichEditor } from './DhivehiRichEditorReact';
+export { useDhivehiEditor } from './hooks/useDhivehiEditor';
+export { ThemeManager } from '../editor/ThemeManager';
+
+
+export { DVRichEditor as default } from './DhivehiRichEditorReact';
+
+export type { 
+  DhivehiRichEditorProps, 
+  DhivehiRichEditorRef,
+  EditorConfig,
+  EditorInstance,
+  ImageConfig,
+  ImageData,
+  ThaanaKeyboardLayout,
+  MarkdownOptions,
+  FormatType,
+  TextSelection,
+  EditorTheme,
+  EditorStyling,
+  ThemeName
+};
+
+
+export type EditorRef = DhivehiRichEditorRef;
+export type EditorProps = DhivehiRichEditorProps;
+

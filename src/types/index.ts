@@ -79,19 +79,22 @@ export interface MarkdownOptions {
   listStyle?: "dash" | "asterisk" | "plus";
 }
 
-export type FormatType =
-  | "bold"
-  | "italic"
-  | "underline"
+export type FormatType = 
+  | "bold" 
+  | "italic" 
+  | "underline" 
   | "strikethrough"
-  | "code"
-  | "heading1"
-  | "heading2"
-  | "heading3"
-  | "bullet-list"
-  | "numbered-list"
+  | "h1" 
+  | "h2" 
+  | "h3" 
+  | "h4" 
+  | "h5" 
+  | "h6"
   | "blockquote"
-  | "link"
+  | "code"
+  | "code-block"
+  | "bullet-list" 
+  | "numbered-list" 
   | "image";
 
 export interface TextSelection {

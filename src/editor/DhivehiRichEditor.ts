@@ -70,8 +70,6 @@ export class DhivehiRichEditor implements EditorInstance {
     this.container.appendChild(this.editor);
   }
 
-
-
   private injectEditorStyles(): void {
     injectEditorStyles();
   }
@@ -179,8 +177,11 @@ export class DhivehiRichEditor implements EditorInstance {
 
   private handleRTLMouseDown(event: MouseEvent): void {
     // Force text cursor for better RTL selection
-    if (event.target === this.editor || (event.target as Element)?.closest('.dv-rich-editor')) {
-      this.editor.style.cursor = 'text';
+    if (
+      event.target === this.editor ||
+      (event.target as Element)?.closest(".dv-rich-editor")
+    ) {
+      this.editor.style.cursor = "text";
     }
   }
 
@@ -205,21 +206,28 @@ export class DhivehiRichEditor implements EditorInstance {
 
   private handleRTLDoubleClick(event: MouseEvent): void {
     event.preventDefault();
-    
+
     // Custom word selection for RTL text
     const selection = window.getSelection();
     if (!selection) return;
 
     const range = document.createRange();
     const textNode = this.getTextNodeAtPoint(event.clientX, event.clientY);
-    
+
     if (textNode && textNode.textContent) {
-      const clickOffset = this.getOffsetInTextNode(textNode, event.clientX, event.clientY);
-      const wordBounds = this.findRTLWordBounds(textNode.textContent, clickOffset);
-      
+      const clickOffset = this.getOffsetInTextNode(
+        textNode,
+        event.clientX,
+        event.clientY
+      );
+      const wordBounds = this.findRTLWordBounds(
+        textNode.textContent,
+        clickOffset
+      );
+
       range.setStart(textNode, wordBounds.start);
       range.setEnd(textNode, wordBounds.end);
-      
+
       selection.removeAllRanges();
       selection.addRange(range);
     }
@@ -258,10 +266,14 @@ export class DhivehiRichEditor implements EditorInstance {
     return 0;
   }
 
-  private findRTLWordBounds(text: string, offset: number): { start: number; end: number } {
+  private findRTLWordBounds(
+    text: string,
+    offset: number
+  ): { start: number; end: number } {
     // RTL word boundary detection for Thaana
-    const thaanaWordSeparators = /[\s\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u061C\u200E\u200F]/;
-    
+    const thaanaWordSeparators =
+      /[\s\u0020\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u061C\u200E\u200F]/;
+
     let start = offset;
     let end = offset;
 
@@ -284,14 +296,14 @@ export class DhivehiRichEditor implements EditorInstance {
     // RTL selection keyboard shortcuts
     if (event.ctrlKey || event.metaKey) {
       switch (event.key) {
-        case 'a':
-        case 'A':
+        case "a":
+        case "A":
           // Select all with better RTL handling
           event.preventDefault();
           this.selectAll();
           return;
-        case 'd':
-        case 'D':
+        case "d":
+        case "D":
           // Select current word
           if (event.shiftKey) {
             event.preventDefault();
@@ -363,7 +375,10 @@ export class DhivehiRichEditor implements EditorInstance {
     });
   }
 
-  private handleContentChange(source: string, immediate: boolean = false): void {
+  private handleContentChange(
+    source: string,
+    immediate: boolean = false
+  ): void {
     if (this.suppressOnChange) {
       return;
     }
@@ -420,7 +435,12 @@ export class DhivehiRichEditor implements EditorInstance {
 
   private isMarkdownSyntax(text: string): boolean {
     const patterns = [
-      /\*\*$/, /\*$/, /~~$/, /#+ $/, /!\[.*\]\(.*\)$/, /\[.*\]\(.*\)$/
+      /\*\*$/,
+      /\*$/,
+      /~~$/,
+      /#+ $/,
+      /!\[.*\]\(.*\)$/,
+      /\[.*\]\(.*\)$/,
     ];
     return patterns.some((pattern) => pattern.test(text));
   }
@@ -456,7 +476,13 @@ export class DhivehiRichEditor implements EditorInstance {
     if (container.nodeType === Node.TEXT_NODE && container.parentElement) {
       const parentTag = container.parentElement.tagName.toLowerCase();
       return [
-        "strong", "em", "u", "strike", "code", "pre", "blockquote",
+        "strong",
+        "em",
+        "u",
+        "strike",
+        "code",
+        "pre",
+        "blockquote",
       ].includes(parentTag);
     }
 
@@ -503,6 +529,7 @@ export class DhivehiRichEditor implements EditorInstance {
 
     return markdown;
   }
+  // Replace your processElementToMarkdown method with this fixed version:
 
   private processElementToMarkdown(element: Element): string {
     let result = "";
@@ -582,10 +609,15 @@ export class DhivehiRichEditor implements EditorInstance {
             result += "> " + this.processElementToMarkdown(el) + "\n";
             break;
           case "ul":
+            result += this.processUnorderedList(el);
+            break;
           case "ol":
+            result += this.processOrderedList(el);
+            break;
           case "li":
             result += this.processElementToMarkdown(el);
             break;
+
           case "span":
             result += this.processElementToMarkdown(el);
             break;
@@ -594,6 +626,46 @@ export class DhivehiRichEditor implements EditorInstance {
             break;
         }
       }
+    }
+
+    return result;
+  }
+
+  private processUnorderedList(element: Element): string {
+    let result = "";
+    const listItems = Array.from(element.children).filter(
+      (child) => child.tagName.toLowerCase() === "li"
+    );
+
+    listItems.forEach((li) => {
+      const content = this.processElementToMarkdown(li).trim();
+      if (content) {
+        result += "- " + content + "\n";
+      }
+    });
+
+    if (result && !result.endsWith("\n")) {
+      result += "\n";
+    }
+
+    return result;
+  }
+
+  private processOrderedList(element: Element): string {
+    let result = "";
+    const listItems = Array.from(element.children).filter(
+      (child) => child.tagName.toLowerCase() === "li"
+    );
+
+    listItems.forEach((li, index) => {
+      const content = this.processElementToMarkdown(li).trim();
+      if (content) {
+        result += `${index + 1}. ${content}\n`;
+      }
+    });
+
+    if (result && !result.endsWith("\n")) {
+      result += "\n";
     }
 
     return result;
@@ -811,15 +883,15 @@ export class DhivehiRichEditor implements EditorInstance {
 
     const range = selection.getRangeAt(0);
     const formattedElement = this.createFormattedElement(format, selectedText);
-    
+
     range.extractContents();
     range.insertNode(formattedElement);
-    
+
     range.setStartAfter(formattedElement);
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
-    
+
     if (!this.suppressOnChange) {
       setTimeout(() => {
         const markdown = this.getMarkdown();
@@ -830,24 +902,38 @@ export class DhivehiRichEditor implements EditorInstance {
 
   private createFormattedElement(format: string, text: string): HTMLElement {
     let element: HTMLElement;
-    
+
     switch (format) {
       case "bold":
-        element = document.createElement('strong');
+        element = document.createElement("strong");
         break;
       case "italic":
-        element = document.createElement('em');
+        element = document.createElement("em");
         break;
       case "underline":
-        element = document.createElement('u');
+        element = document.createElement("u");
         break;
       case "strikethrough":
-        element = document.createElement('s');
+        element = document.createElement("s");
+        break;
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6":
+        element = document.createElement(format);
+        break;
+      case "blockquote":
+        element = document.createElement("blockquote");
+        break;
+      case "code":
+        element = document.createElement("code");
         break;
       default:
-        element = document.createElement('span');
+        element = document.createElement("span");
     }
-    
+
     element.textContent = text;
     return element;
   }
@@ -878,31 +964,31 @@ export class DhivehiRichEditor implements EditorInstance {
     const walker = document.createTreeWalker(
       this.editor,
       NodeFilter.SHOW_TEXT,
-      null,
+      null
     );
-    
+
     let currentOffset = 0;
     let targetNode: Node | null = null;
     let targetOffset = 0;
-    
+
     while (walker.nextNode()) {
       const node = walker.currentNode;
       const nodeLength = node.textContent?.length || 0;
-      
+
       if (currentOffset + nodeLength >= textOffset) {
         targetNode = node;
         targetOffset = textOffset - currentOffset;
         break;
       }
-      
+
       currentOffset += nodeLength;
     }
-    
+
     if (targetNode) {
       const range = document.createRange();
       range.setStart(targetNode, targetOffset);
       range.collapse(true);
-      
+
       const selection = window.getSelection();
       if (selection) {
         selection.removeAllRanges();
@@ -922,8 +1008,20 @@ export class DhivehiRichEditor implements EditorInstance {
       return;
     }
 
-    const allowWithoutSelection = ["bullet-list", "numbered-list", "image"];
-    
+    const allowWithoutSelection = [
+      "bullet-list",
+      "numbered-list",
+      "image",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "blockquote",
+      "code-block",
+    ];
+
     if (
       (!selectedText || selectedText.trim() === "") &&
       !allowWithoutSelection.includes(format)
@@ -939,6 +1037,33 @@ export class DhivehiRichEditor implements EditorInstance {
         if (!selectedText) return;
         this.applyTextFormatting(format, selectedText);
         break;
+
+      // Headings
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6":
+        this.applyHeading(format);
+        break;
+
+      // Blockquote
+      case "blockquote":
+        this.applyBlockquote();
+        break;
+
+      // Code formatting
+      case "code":
+        if (!selectedText) return;
+        this.applyInlineCode(selectedText);
+        break;
+
+      case "code-block":
+        this.applyCodeBlock();
+        break;
+
+      // Existing cases
       case "image":
         this.openImageDialog();
         break;
@@ -951,20 +1076,193 @@ export class DhivehiRichEditor implements EditorInstance {
     }
   }
 
+  private applyHeading(headingType: string): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString() || "Heading";
+
+    const headingElement = document.createElement(headingType); // h1, h2, h3, etc.
+    headingElement.textContent = selectedText;
+
+    try {
+      range.deleteContents();
+      range.insertNode(headingElement);
+      range.setStartAfter(headingElement);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      if (!this.suppressOnChange) {
+        setTimeout(() => {
+          const markdown = this.getMarkdown();
+          this.config.onChange?.(markdown);
+        }, 10);
+      }
+    } catch (error) {
+      console.error("Error applying heading:", error);
+    }
+  }
+
+  private applyBlockquote(): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString() || "Quote";
+
+    // Create actual HTML blockquote element
+    const blockquoteElement = document.createElement("blockquote");
+    blockquoteElement.textContent = selectedText;
+
+    try {
+      range.deleteContents();
+      range.insertNode(blockquoteElement);
+
+      // Position cursor after the blockquote
+      range.setStartAfter(blockquoteElement);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      if (!this.suppressOnChange) {
+        setTimeout(() => {
+          const markdown = this.getMarkdown();
+          this.config.onChange?.(markdown);
+        }, 10);
+      }
+    } catch (error) {
+      console.error("Error applying blockquote:", error);
+    }
+  }
+
+  private applyInlineCode(selectedText: string): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+
+    // Create actual HTML code element
+    const codeElement = document.createElement("code");
+    codeElement.textContent = selectedText;
+
+    try {
+      range.deleteContents();
+      range.insertNode(codeElement);
+
+      // Position cursor after the code
+      range.setStartAfter(codeElement);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      if (!this.suppressOnChange) {
+        setTimeout(() => {
+          const markdown = this.getMarkdown();
+          this.config.onChange?.(markdown);
+        }, 10);
+      }
+    } catch (error) {
+      console.error("Error applying inline code:", error);
+    }
+  }
+
+  private applyCodeBlock(): void {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString() || "code";
+
+    // Create actual HTML pre + code elements
+    const preElement = document.createElement("pre");
+    const codeElement = document.createElement("code");
+    codeElement.textContent = selectedText;
+    preElement.appendChild(codeElement);
+
+    try {
+      range.deleteContents();
+      range.insertNode(preElement);
+
+      // Position cursor after the code block
+      range.setStartAfter(preElement);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      if (!this.suppressOnChange) {
+        setTimeout(() => {
+          const markdown = this.getMarkdown();
+          this.config.onChange?.(markdown);
+        }, 10);
+      }
+    } catch (error) {
+      console.error("Error applying code block:", error);
+    }
+  }
+
+  // Replace your existing applyFormatSafely method with this:
   private applyFormatSafely(format: FormatType): void {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const selectedText = selection.toString();
-    if (!selectedText) return;
+
+    // Some formats don't require selected text
+    const allowWithoutSelection = [
+      "bullet-list",
+      "numbered-list",
+      "image",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "blockquote",
+      "code-block",
+    ];
+
+    if (!selectedText && !allowWithoutSelection.includes(format)) {
+      return;
+    }
 
     switch (format) {
       case "bold":
       case "italic":
       case "underline":
       case "strikethrough":
+        if (!selectedText) return;
         this.applyTextFormatting(format, selectedText);
         break;
+
+      // Headings
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6":
+        this.applyHeading(format);
+        break;
+
+      // Blockquote
+      case "blockquote":
+        this.applyBlockquote();
+        break;
+
+      // Code formatting
+      case "code":
+        if (!selectedText) return;
+        this.applyInlineCode(selectedText);
+        break;
+
+      case "code-block":
+        this.applyCodeBlock();
+        break;
+
+      // Existing cases
       case "image":
         this.openImageDialog();
         break;
@@ -976,12 +1274,101 @@ export class DhivehiRichEditor implements EditorInstance {
         break;
     }
   }
-
   public removeFormat(format: FormatType): void {
     this.applyFormat(format);
   }
+  private isHeadingActive(headingType: string): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    let element: Node | null = range.startContainer;
+
+    // Traverse up the DOM to find if we're inside a heading
+    while (element && element !== this.editor) {
+      if (element.nodeType === Node.ELEMENT_NODE) {
+        const tagName = (element as Element).tagName.toLowerCase();
+        if (tagName === headingType) {
+          return true;
+        }
+      }
+      element = element.parentNode;
+    }
+
+    return false;
+  }
+
+  private isBlockquoteActive(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    let element: Node | null = range.startContainer;
+
+    // Traverse up the DOM to find if we're inside a blockquote
+    while (element && element !== this.editor) {
+      if (element.nodeType === Node.ELEMENT_NODE) {
+        const tagName = (element as Element).tagName.toLowerCase();
+        if (tagName === "blockquote") {
+          return true;
+        }
+      }
+      element = element.parentNode;
+    }
+
+    return false;
+  }
+
+  private isInlineCodeActive(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    let element: Node | null = range.startContainer;
+
+    // Traverse up the DOM to find if we're inside inline code
+    while (element && element !== this.editor) {
+      if (element.nodeType === Node.ELEMENT_NODE) {
+        const tagName = (element as Element).tagName.toLowerCase();
+        if (tagName === "code") {
+          // Make sure it's not inside a pre element (code block)
+          const parentPre = (element as Element).closest("pre");
+          if (!parentPre) {
+            return true;
+          }
+        }
+      }
+      element = element.parentNode;
+    }
+
+    return false;
+  }
+
+  private isCodeBlockActive(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    let element: Node | null = range.startContainer;
+
+    // Traverse up the DOM to find if we're inside a pre (code block)
+    while (element && element !== this.editor) {
+      if (element.nodeType === Node.ELEMENT_NODE) {
+        const tagName = (element as Element).tagName.toLowerCase();
+        if (tagName === "pre") {
+          return true;
+        }
+      }
+      element = element.parentNode;
+    }
+
+    return false;
+  }
 
   public isFormatActive(format: FormatType): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
     switch (format) {
       case "bold":
         return document.queryCommandState("bold");
@@ -991,6 +1378,27 @@ export class DhivehiRichEditor implements EditorInstance {
         return document.queryCommandState("underline");
       case "strikethrough":
         return document.queryCommandState("strikeThrough");
+
+      // Check for headings
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6":
+        return this.isHeadingActive(format);
+
+      // Check for blockquote
+      case "blockquote":
+        return this.isBlockquoteActive();
+
+      // Check for code
+      case "code":
+        return this.isInlineCodeActive();
+
+      case "code-block":
+        return this.isCodeBlockActive();
+
       default:
         return false;
     }
@@ -1062,7 +1470,7 @@ export class DhivehiRichEditor implements EditorInstance {
 
   public selectText(start: number, end: number): void {
     // Helper method for programmatic text selection in RTL context
-    const textContent = this.editor.textContent || '';
+    const textContent = this.editor.textContent || "";
     if (start < 0 || end > textContent.length || start > end) {
       return;
     }
@@ -1114,7 +1522,7 @@ export class DhivehiRichEditor implements EditorInstance {
     // Select all text with proper RTL handling
     const range = document.createRange();
     range.selectNodeContents(this.editor);
-    
+
     const selection = window.getSelection();
     if (selection) {
       selection.removeAllRanges();
@@ -1133,11 +1541,11 @@ export class DhivehiRichEditor implements EditorInstance {
     if (textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
       const offset = range.startOffset;
       const wordBounds = this.findRTLWordBounds(textNode.textContent, offset);
-      
+
       const newRange = document.createRange();
       newRange.setStart(textNode, wordBounds.start);
       newRange.setEnd(textNode, wordBounds.end);
-      
+
       selection.removeAllRanges();
       selection.addRange(newRange);
     }
@@ -1229,8 +1637,6 @@ export class DhivehiRichEditor implements EditorInstance {
       clearTimeout(this.changeTimeout);
       this.changeTimeout = undefined;
     }
-
-    // RTL styles are now handled in CSS file, no need to clean up dynamic styles
 
     this.thaanaInput.destroy();
     this.editor.remove();

@@ -1,427 +1,467 @@
-# DV Rich Editor
+# 🖋️ DV Rich Editor
 
-A lightweight Dhivehi rich text editor featuring built-in Thaana keyboard support, dynamic theming, and clean markdown output. This is an effort to better handle markdown images and custom tags correctly in RTL inputs. It also gracefully manages image spacing and backspace behavior during Dhivehi typing, preventing unintended issues such as breaking URLs and other markdown tags.
+[![npm version](https://badge.fury.io/js/dv-rich-editor.svg)](https://badge.fury.io/js/dv-rich-editor)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://badges.frapsoft.com/typescript/code/typescript.svg?v=101)](https://github.com/ellerbrock/typescript-badges/)
 
-# Thaana keyboard IME approach
+> A lightweight Dhivehi rich text editor featuring built-in Thaana keyboard support, dynamic theming, and clean markdown output. This is an effort to better handle markdown images and custom tags correctly in RTL inputs. It also gracefully manages image spacing and backspace behavior during Dhivehi typing, preventing unintended issues such as breaking URLs and other markdown tags.
 
-This implementation differs significantly from most existing solutions. It combines immediate character mapping with  akuru–fili composition inspired by IMEs like Wanakana. It uses a short-lived buffer to detect and merge akuru–fili pairs while inserting characters directly into the DOM for immediate feedback. It also supports automatic conversion of pasted text and configurable key mappings. While the approach is somewhat more complex than simpler solutions, practical testing has shown performance to be solid. This implementation is designed to offer more predictable behavior in rich text editors and content-editable environments, but thorough testing is recommended before deploying it in production.
+Thaana keyboard IME (EXPERIMENTAL)
 
-## Security Notice
+The Thaana keyboard used here is experimental. It combines immediate character mapping with akuru–fili composition inspired by IMEs like Wanakana. Text is inserted directly into the DOM for real-time feedback, with a short buffer for fili merging . While more complex than traditional thaana implimentaions, it performs well in testing . This implementation is highly experimental and subject to change , a simpler version may replace it in the future, or additional smart prediction or similar features may be introduced.
 
-- This library is intended to be as lightweight as possible and therefore does not include input validation or output sanitization.
-- Sanitize HTML output with DOMPurify or similar
-- Validate all user URLs and inputs  
-- Implement Content Security Policy
+## 🚀 Quick Start
 
-
-## Installation
+### Installation
 
 ```bash
 npm install dv-rich-editor
+# or
+yarn add dv-rich-editor
+# or
+pnpm add dv-rich-editor
 ```
 
-## Quick Start
+### React (Recommended)
+
+```tsx
+import { DVRichEditor } from 'dv-rich-editor/react';
+import type { DhivehiRichEditorRef } from 'dv-rich-editor/react';
+
+function MyEditor() {
+  const [content, setContent] = useState('# ވެލްކަމް 👋\n\n**ތާނަ** އަދި *English* މިކްސް ކޮންޓެންޓް!');
+  
+  return (
+    <DVRichEditor
+      placeholder="ލިޔުއްވާށެވެ... Start typing..."
+      onChange={setContent}
+      theme={{ name: 'blue' }}
+      className="min-h-[300px]"
+    />
+  );
+}
+```
 
 ### Vanilla JavaScript
-
-#### Using a Bundler (Webpack, Vite, Parcel, etc.)
 
 ```javascript
 import { DhivehiRichEditor } from 'dv-rich-editor';
 
 const editor = new DhivehiRichEditor({
-    container: '#editor-container',
-    placeholder: 'ލިޔުއްވާށެވެ...',
-    onChange: (markdown) => console.log(markdown)
+  container: '#editor',
+  placeholder: 'ލިޔުއްވާށެވެ...',
+  onChange: (markdown) => console.log(markdown),
+  theme: { name: 'dark' }
 });
 ```
 
-#### Using UMD Bundle (Plain HTML)
 
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>DV Rich Editor</title>
-    <script src="dist/dv-rich-editor.umd.js"></script>
-</head>
-<body>
-    <div id="editor-container"></div>
-    
-    <script>
-        const { DhivehiRichEditor } = window.DVRichEditor;
-        
-        const editor = new DhivehiRichEditor({
-            container: '#editor-container',
-            placeholder: 'ލިޔުއްވާށެވެ...',
-            onChange: (markdown) => console.log(markdown)
-        });
-    </script>
-</body>
-</html>
-```
-
-### React
-
-#### Basic Usage
-
-```tsx
-import { DVRichEditor } from 'dv-rich-editor/react';
-
-function MyEditor() {
-    const [content, setContent] = useState('');
-    
-    return (
-        <DVRichEditor
-            placeholder="ލިޔުއްވާށެވެ..."
-            onChange={setContent}
-            theme={{ name: 'blue' }}
-        />
-    );
-}
-```
-
-#### With Formatting (Hook)
-
-```tsx
-import { DVRichEditor, useDhivehiEditor } from 'dv-rich-editor/react';
-
-function EditorWithToolbar() {
-    const [content, setContent] = useState('');
-    const { applyFormat, isFormatActive } = useDhivehiEditor();
-    
-    return (
-        <div>
-            <button 
-                onClick={() => applyFormat('bold')}
-                className={isFormatActive('bold') ? 'active' : ''}
-            >
-                Bold
-            </button>
-            <DVRichEditor
-                placeholder="ލިޔުއްވާށެވެ..."
-                onChange={setContent}
-            />
-        </div>
-    );
-}
-```
-
-#### With Formatting (Ref)
+### Basic Editor with Toolbar
 
 ```tsx
 import { useRef } from 'react';
 import { DVRichEditor } from 'dv-rich-editor/react';
+import type { DhivehiRichEditorRef, FormatType } from 'dv-rich-editor/react';
 
-function EditorWithRef() {
-    const editorRef = useRef(null);
-    const [content, setContent] = useState('');
-    
-    return (
-        <div>
-            <button onClick={() => editorRef.current?.applyFormat('bold')}>
-                Bold
-            </button>
-            <DVRichEditor
-                ref={editorRef}
-                placeholder="ލިޔުއްވާށެވެ..."
-                onChange={setContent}
-            />
-        </div>
-    );
-}
-```
+function EditorWithToolbar() {
+  const editorRef = useRef<DhivehiRichEditorRef>(null);
+  const [content, setContent] = useState('');
 
-### Next.js (not tested might not work)
+  const applyFormat = (format: FormatType) => {
+    editorRef.current?.applyFormat(format);
+  };
 
-```tsx
-import dynamic from 'next/dynamic';
+  const checkFormat = (format: FormatType) => {
+    return editorRef.current?.isFormatActive(format) || false;
+  };
 
-const DVRichEditor = dynamic(
-    () => import('dv-rich-editor/react').then(mod => mod.DVRichEditor),
-    { ssr: false }
-);
-```
-
-## Theming
-
-### Pre-built Themes
-
-
-```tsx
-<DVRichEditor theme={{ name: 'default' }} />      // Clean
-<DVRichEditor theme={{ name: 'dark' }} />         // Dark mode
-<DVRichEditor theme={{ name: 'light' }} />        // Bright, minimal  
-<DVRichEditor theme={{ name: 'blue' }} />         // Blue 
-<DVRichEditor theme={{ name: 'minimal' }} />      // Borderless
-<DVRichEditor theme={{ name: 'classic' }} />      // Traditional
-```
-
-### Custom Themes
-
-
-```tsx
-<DVRichEditor
-    theme={{
-        name: 'My Theme',
-        colors: {
-            background: '#ffffff',
-            text: '#333333',
-            border: '#007bff',
-            borderFocus: '#0056b3',
-            placeholder: '#999999'
-        },
-        typography: {
-            fontFamily: '"Noto Sans Dhivehi", sans-serif',
-            fontSize: '18px',
-            lineHeight: '1.7'
-        },
-        spacing: {
-            padding: '20px',
-            borderRadius: '8px',
-            borderWidth: '2px'
-        }
-    }}
-/>
-```
-
-### Advanced Styling
-
-Inject custom CSS :
-
-```tsx
-<DVRichEditor
-    styling={{
-        container: {
-            css: { boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }
-        },
-        customCSS: `
-            .dv-rich-editor h1 { color: #e74c3c; }
-            .dv-rich-editor strong { background: #f39c1220; }
-        `
-    }}
-/>
-```
-
-### Theme Options
-
-**Colors:** background, text, border, borderFocus, placeholder, selection, link, codeBackground, blockquoteBackground, blockquoteBorder
-
-**Typography:** fontFamily, fontSize, lineHeight, fontWeight  
-
-**Spacing:** padding, margin, borderRadius, borderWidth
-
-**Integration:** Works  with Tailwind and Bootstrap 
-
-## Image Upload & Media Handling
-
-Image URL input  or custom image uploader call back option 
-
-
-### Basic Image Configuration
-
-```typescript
-{
-    // Image handling configuration
-    image?: {
-        defaultAltText?: string;    
-        preview?: boolean;         
-    },
-    
-    // Upload callback - integrate with your service
-    onImageUrlRequest?: () => Promise<string>;
-}
-```
-
-
-```typescript
-// Use with editor
-
-<DVRichEditor
-    onImageUrlRequest={handleImageUpload}
-    image={{
-      defaultAltText: 'photo'  // default alt if image have none
-      preview: true  // Shows actual images in editor
-    }}
-/>
-```
-
-
-## Configuration
-
-### Basic Options
-
-```typescript
-{
-    container: HTMLElement | string;
-    initialContent?: string;
-    placeholder?: string;
-    theme?: EditorTheme;
-    styling?: EditorStyling;
-    onChange?: (markdown: string) => void;
-    onImageUrlRequest?: () => Promise<string>;
-    
-    // Image configuration
-    image?: {
-        defaultAltText?: string;
-        preview?: boolean;
-    };
-}
-```
-
-### Features
-
-```typescript
-features: {
-    bold: true,
-    italic: true,
-    underline: true,
-    heading: true,
-    list: true,
-    image: true,
-    blockquote: true
-}
-```
-
-### Thaana Keyboard
-
-```typescript
-thaana: {
-    enabled: true,
-    autoCorrect: true,
-    phonetic: false
-}
-```
-
-## Reference
-
-### Core Methods
-
-| Method | Description |
-|--------|-------------|
-| `getMarkdown()` | Get content as markdown |
-| `setMarkdown(content)` | Set content from markdown |
-| `insertImage(imageData)` | Insert image |
-| `copyToClipboard()` | Copy to clipboard |
-| `applyFormat(format)` | Apply formatting (see detailed docs below) |
-| `removeFormat(format)` | Remove specific formatting |
-| `isFormatActive(format)` | Check if format is active at cursor |
-| `updateTheme(theme)` | Change theme dynamically |
-| `setThaanaEnabled(enabled)` | Enable/disable Thaana input at runtime |
-| `clear()` | Clear all content |
-
-### Formatting Methods
-
-#### `applyFormat(format: FormatType)`
-
-Applies formatting to the currently selected text.
-
-**Available Format Types:**
-
-```typescript
-type FormatType = 
-  | 'bold'           // **text** or <strong>
-  | 'italic'         // *text* or <em>  
-  | 'underline'      // <u>text</u>
-  | 'strikethrough'  // ~~text~~
-  | 'code'           // `text`
-  | 'heading1'       // # text
-  | 'heading2'       // ## text  
-  | 'heading3'       // ### text
-  | 'bullet-list'    // - item
-  | 'numbered-list'  // 1. item
-  | 'blockquote'     // > text
-  | 'link'           // [text](url)
-  | 'image'          // ![alt](url)
-```
-
-**Formatting Behavior:**
-
-- **Near markdown syntax**: Uses markdown formatting (`**bold**`, `*italic*`)
-- **Normal text**: Uses HTML formatting (`<strong>`, `<em>`) via `document.execCommand`
-- **RTL protection**: Adds spaces around formatting for proper Dhivehi text handling
-
-**Usage Examples:**
-
-```javascript
-// Vanilla JavaScript
-const editor = new DhivehiRichEditor({ container: '#editor' });
-
-// Apply formatting to selected text
-editor.applyFormat('bold');
-editor.applyFormat('italic');
-editor.applyFormat('bullet-list');
-```
-
-```tsx
-// React Hook
-const { applyFormat, isFormatActive, removeFormat } = useDhivehiEditor();
-
-// Apply formatting
-const handleBold = () => applyFormat('bold');
-const handleItalic = () => applyFormat('italic');
-
-// Check if format is active (for toolbar state)
-const isBold = isFormatActive('bold');
-const isItalic = isFormatActive('italic');
-
-// Remove formatting
-const removeBold = () => removeFormat('bold');
-```
-
-```tsx
-// React Component Ref
-const editorRef = useRef<DhivehiRichEditorRef>(null);
-
-const applyBold = () => {
-  editorRef.current?.applyFormat('bold');
-};
-
-const checkFormatting = () => {
-  const isBold = editorRef.current?.isFormatActive('bold');
-  console.log('Bold active:', isBold);
-};
-```
-
-**Toolbar Integration Example:**
-
-```tsx
-function EditorToolbar() {
-  const { applyFormat, isFormatActive } = useDhivehiEditor();
-  
-  const formatButtons = [
-    { format: 'bold', label: 'B', title: 'Bold' },
-    { format: 'italic', label: 'I', title: 'Italic' },
-    { format: 'underline', label: 'U', title: 'Underline' },
-    { format: 'strikethrough', label: 'S', title: 'Strikethrough' },
-  ];
-  
   return (
-    <div className="toolbar">
-      {formatButtons.map(({ format, label, title }) => (
+    <div className="border rounded-lg overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 p-2 border-b bg-gray-50">
         <button
-          key={format}
-          onClick={() => applyFormat(format)}
-          className={isFormatActive(format) ? 'active' : ''}
-          title={title}
+          onClick={() => applyFormat('bold')}
+          className={`px-3 py-1 rounded ${checkFormat('bold') ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`}
         >
-          {label}
+          <strong>B</strong>
         </button>
-      ))}
+        <button
+          onClick={() => applyFormat('italic')}
+          className={`px-3 py-1 rounded ${checkFormat('italic') ? 'bg-blue-500 text-white' : 'hover:bg-gray-200'}`}
+        >
+          <em>I</em>
+        </button>
+        <button
+          onClick={() => applyFormat('h1')}
+          className="px-3 py-1 rounded hover:bg-gray-200"
+        >
+          H1
+        </button>
+        <button
+          onClick={() => applyFormat('blockquote')}
+          className="px-3 py-1 rounded hover:bg-gray-200"
+        >
+          Quote
+        </button>
+      </div>
+
+      {/* Editor */}
+      <DVRichEditor
+        ref={editorRef}
+        placeholder="ލިޔުއްވާށެވެ... Start typing..."
+        onChange={setContent}
+        theme={{ name: 'minimal' }}
+        className="min-h-[300px] p-4"
+      />
     </div>
   );
 }
 ```
 
-### React Hook
+### Advanced Example with Image Upload
 
 ```tsx
-const {
-    editorRef,
-    getMarkdown,
-    applyFormat,
-    copyToClipboard,
-    clear
-} = useDhivehiEditor();
+function AdvancedEditor() {
+  const [content, setContent] = useState('');
+  
+  const handleImageUpload = async (): Promise<string> => {
+    // Your image upload logic
+    const file = await selectFile();
+    const url = await uploadToServer(file);
+    return url;
+  };
+
+  return (
+    <DVRichEditor
+      placeholder="ލިޔުއްވާށެވެ... Start typing..."
+      onChange={setContent}
+      onImageUrlRequest={handleImageUpload}
+      theme={{
+        name: 'custom',
+        colors: {
+          background: '#ffffff',
+          text: '#1a202c',
+          border: '#3182ce',
+          borderFocus: '#2c5aa0'
+        },
+        typography: {
+          fontFamily: '"Noto Sans Dhivehi", system-ui, sans-serif',
+          fontSize: '16px',
+          lineHeight: '1.6'
+        }
+      }}
+      styling={{
+        customCSS: `
+          .dv-rich-editor h1 { color: #2d3748; border-bottom: 2px solid #3182ce; }
+          .dv-rich-editor blockquote { background: #ebf8ff; border-left: 4px solid #3182ce; }
+        `
+      }}
+      image={{
+        preview: true,
+        defaultAltText: 'Uploaded image'
+      }}
+    />
+  );
+}
 ```
 
+## Theming
+
+### Built-in Themes
+
+```tsx
+{/* Light & Clean */}
+<DVRichEditor theme={{ name: 'default' }} />
+
+{/* Dark Mode */}
+<DVRichEditor theme={{ name: 'dark' }} />
+
+{/* Minimal & Borderless */}
+<DVRichEditor theme={{ name: 'minimal' }} />
+
+{/* Professional Blue */}
+<DVRichEditor theme={{ name: 'blue' }} />
+
+{/* Classic Look */}
+<DVRichEditor theme={{ name: 'classic' }} />
+
+{/* Bright & Airy */}
+<DVRichEditor theme={{ name: 'light' }} />
+```
+
+### Custom Themes
+
+Create your own theme with full control:
+
+```tsx
+<DVRichEditor
+  theme={{
+    name: 'MyBrand',
+    colors: {
+      background: '#fafafa',
+      text: '#2d3748',
+      border: '#e2e8f0',
+      borderFocus: '#3182ce',
+      placeholder: '#a0aec0',
+      selection: '#bee3f8',
+      link: '#3182ce',
+      codeBackground: '#f7fafc',
+      blockquoteBackground: '#ebf8ff',
+      blockquoteBorder: '#3182ce'
+    },
+    typography: {
+      fontFamily: '"Inter", "Noto Sans Dhivehi", system-ui, sans-serif',
+      fontSize: '16px',
+      lineHeight: '1.7',
+      fontWeight: '400'
+    },
+    spacing: {
+      padding: '20px',
+      margin: '0',
+      borderRadius: '12px',
+      borderWidth: '2px'
+    }
+  }}
+/>
+```
+
+### Advanced CSS Customization
+
+```tsx
+<DVRichEditor
+  styling={{
+    container: {
+      css: { 
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+        transition: 'all 0.3s ease'
+      }
+    },
+    customCSS: `
+      .dv-rich-editor {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .dv-rich-editor h1 {
+        background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .dv-rich-editor strong {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    `
+  }}
+/>
+```
+
+##  Image & Media Handling
+
+### Basic Image Support
+
+```tsx
+<DVRichEditor
+  image={{
+    preview: true,           // Show actual images in editor
+    defaultAltText: 'Image'  // Default alt text
+  }}
+/>
+```
+
+### Custom Image Upload
+
+```tsx
+const handleImageUpload = async (): Promise<string> => {
+  // Open file picker
+  const file = await new Promise<File>((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => resolve((e.target as HTMLInputElement).files![0]);
+    input.click();
+  });
+
+  // Upload to your service
+  const formData = new FormData();
+  formData.append('image', file);
+  
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData
+  });
+  
+  const { url } = await response.json();
+  return url;
+};
+
+<DVRichEditor
+  onImageUrlRequest={handleImageUpload}
+  image={{ preview: true }}
+/>
+```
+
+
+### Custom Key Mapping
+
+```tsx
+const customKeyMap = {
+  'q': 'ް',  // sukun
+  'w': 'އ',  // alifu
+  'e': 'ެ',  // ebefili
+  // ... your custom mappings
+};
+
+<DVRichEditor
+  thaana={{
+    enabled: true,
+    keyMap: customKeyMap
+  }}
+/>
+```
+
+### Runtime Control
+
+```tsx
+const editorRef = useRef<DhivehiRichEditorRef>(null);
+
+// Toggle Thaana input dynamically
+const toggleThaana = () => {
+  const isEnabled = editorRef.current?.getThaanaConfig()?.enabled;
+  editorRef.current?.setThaanaEnabled(!isEnabled);
+};
+```
+
+## Reference
+
+### Component Props (React)
+
+```typescript
+interface DhivehiRichEditorProps {
+  // Content
+  placeholder?: string;
+  initialContent?: string;
+  onChange?: (markdown: string) => void;
+  
+  // Styling
+  className?: string;
+  style?: React.CSSProperties;
+  theme?: EditorTheme;
+  styling?: EditorStyling;
+  
+  // Features
+  image?: ImageConfig;
+  thaana?: ThaanaKeyboardLayout;
+  
+  // Events
+  onFocus?: () => void;
+  onBlur?: () => void;
+  onImageUrlRequest?: () => Promise<string>;
+}
+```
+
+### Editor Methods
+
+```typescript
+interface DhivehiRichEditorRef {
+  // Content Management
+  getMarkdown(): string;
+  setMarkdown(content: string, preserveFocus?: boolean): void;
+  clear(): void;
+  insertText(text: string): void;
+  appendContent(content: string): void;
+  
+  // Formatting
+  applyFormat(format: FormatType): void;
+  removeFormat(format: FormatType): void;
+  isFormatActive(format: FormatType): boolean;
+  
+  // Focus & Selection
+  focus(): void;
+  blur(): void;
+  getSelection(): TextSelection;
+  
+  // Images
+  insertImage(imageData: ImageData): void;
+  openImageDialog(): Promise<void>;
+  
+  // Clipboard
+  copyToClipboard(): Promise<boolean>;
+  pasteFromClipboard(): Promise<boolean>;
+  
+  // Thaana
+  setThaanaEnabled(enabled: boolean): void;
+  getThaanaConfig(): ThaanaKeyboardLayout;
+  updateThaanaKeyMap(keyMap: Record<string, string>): void;
+  
+  // Theming
+  updateTheme(theme: EditorTheme): void;
+  
+  // Lifecycle
+  destroy(): void;
+}
+```
+
+### Format Types
+
+```typescript
+type FormatType = 
+  // Text Formatting
+  | 'bold'           // **text** or <strong>
+  | 'italic'         // *text* or <em>
+  | 'underline'      // <u>text</u>
+  | 'strikethrough'  // ~~text~~
+  
+  // Headings
+  | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  
+  // Lists
+  | 'bullet-list'    // - item
+  | 'numbered-list'  // 1. item
+  
+  // Other
+  | 'blockquote'     // > text
+  | 'code'           // `code`
+  | 'code-block'     // ```code```
+  | 'link'           // [text](url)
+  | 'image';         // ![alt](url)
+```
+
+
+
+
+##  Security
+
+> ⚠️ **Important**: This library focuses on lightweight editing and does not include built-in sanitization.
+
+
+##  Troubleshooting
+
+### Common Issues
+
+**TypeScript errors with imports:**
+```typescript
+// ✅ Correct way
+import { DVRichEditor } from 'dv-rich-editor/react';
+import type { DhivehiRichEditorRef } from 'dv-rich-editor/react';
+
+// ❌ Incorrect way  
+import { DVRichEditor, DhivehiRichEditorRef } from 'dv-rich-editor/react';
+```
+
+**Thaana input not working:**
+```typescript
+// Ensure Thaana is enabled
+<DVRichEditor
+  thaana={{ enabled: true }}
+  placeholder="ލިޔުއްވާށެވެ..."
+/>
+```
+
+
+
+
+
+
+
+# ......thats all

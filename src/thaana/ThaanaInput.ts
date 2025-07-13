@@ -1,148 +1,264 @@
-import { ThaanaKeyboardLayout } from '../types';
+import { ThaanaKeyboardLayout } from "../types";
 
 export class ThaanaInput {
   private config: ThaanaKeyboardLayout;
-  private className: string = '.dv-rich-editor';
-  
+  private className: string = ".dv-rich-editor";
 
-  private AkuruBuffer: string = '';
-  private lastAkuru: string = '';
+  private AkuruBuffer: string = "";
+  private lastAkuru: string = "";
   private expectingFili: boolean = false;
   private bufferTimeout: number | null = null;
   private isBufferInserted: boolean = false;
-  
 
   private lastSelection: { node: Node; offset: number } | null = null;
   private selectionChanged = true;
 
   //categorization for buffering
   private static readonly AKURU = new Set([
-    'd', 'k', 's', 't', 'f', 'g', 'h', 'j', 'l', 'z', 'v', 'b', 'n', 'm', 'r', 'y', 'p', 'c',
-    'D', 'K', 'S', 'T', 'F', 'G', 'H', 'J', 'L', 'Z', 'V', 'B', 'N', 'M', 'R', 'Y', 'P', 'C'
+    "d",
+    "k",
+    "s",
+    "t",
+    "f",
+    "g",
+    "h",
+    "j",
+    "l",
+    "z",
+    "v",
+    "b",
+    "n",
+    "m",
+    "r",
+    "y",
+    "p",
+    "c",
+    "D",
+    "K",
+    "S",
+    "T",
+    "F",
+    "G",
+    "H",
+    "J",
+    "L",
+    "Z",
+    "V",
+    "B",
+    "N",
+    "M",
+    "R",
+    "Y",
+    "P",
+    "C",
   ]);
-  
+
   private static readonly FILI = new Set([
-    'a', 'i', 'u', 'e', 'o', 'q', 
-    'A', 'I', 'U', 'E', 'O'      
+    "a",
+    "i",
+    "u",
+    "e",
+    "o",
+    "q",
+    "A",
+    "I",
+    "U",
+    "E",
+    "O",
   ]);
-  
 
   private static readonly IMMEDIATE_CHARS = new Set([
-    '.', ',', '!', '?', '\n', '\t', ';', ':', '(', ')', '[', ']', '{', '}', '<', '>', '/', '\\'
-  ])
-
+    ".",
+    ",",
+    "!",
+    "?",
+    "\n",
+    "\t",
+    ";",
+    ":",
+    "(",
+    ")",
+    "[",
+    "]",
+    "{",
+    "}",
+    "<",
+    ">",
+    "/",
+    "\\",
+  ]);
 
   private static readonly CHAR_MAP = new Map([
-    ['q', 'ް'], ['w', 'އ'], ['e', 'ެ'], ['r', 'ރ'], ['t', 'ތ'],
-    ['y', 'ޔ'], ['u', 'ު'], ['i', 'ި'], ['o', 'ޮ'], ['p', 'ޕ'],
-    ['a', 'ަ'], ['s', 'ސ'], ['d', 'ދ'], ['f', 'ފ'], ['g', 'ގ'],
-    ['h', 'ހ'], ['j', 'ޖ'], ['k', 'ކ'], ['l', 'ލ'], ['z', 'ޒ'],
-    ['x', '×'], ['c', 'ޗ'], ['v', 'ވ'], ['b', 'ބ'], ['n', 'ނ'], ['m', 'މ'],
-    
-    ['Q', 'ޤ'], ['W', 'ޢ'], ['E', 'ޭ'], ['R', 'ޜ'], ['T', 'ޓ'],
-    ['Y', 'ޠ'], ['U', 'ޫ'], ['I', 'ީ'], ['O', 'ޯ'], ['P', '÷'],
-    ['A', 'ާ'], ['S', 'ށ'], ['D', 'ޑ'], ['F', 'ﷲ'], ['G', 'ޣ'],
-    ['H', 'ޙ'], ['J', 'ޛ'], ['K', 'ޚ'], ['L', 'ޅ'], ['Z', 'ޡ'],
-    ['X', 'ޘ'], ['C', 'ޝ'], ['V', 'ޥ'], ['B', 'ޞ'], ['N', 'ޏ'], ['M', 'ޟ'],
+    ["q", "ް"],
+    ["w", "އ"],
+    ["e", "ެ"],
+    ["r", "ރ"],
+    ["t", "ތ"],
+    ["y", "ޔ"],
+    ["u", "ު"],
+    ["i", "ި"],
+    ["o", "ޮ"],
+    ["p", "ޕ"],
+    ["a", "ަ"],
+    ["s", "ސ"],
+    ["d", "ދ"],
+    ["f", "ފ"],
+    ["g", "ގ"],
+    ["h", "ހ"],
+    ["j", "ޖ"],
+    ["k", "ކ"],
+    ["l", "ލ"],
+    ["z", "ޒ"],
+    ["x", "×"],
+    ["c", "ޗ"],
+    ["v", "ވ"],
+    ["b", "ބ"],
+    ["n", "ނ"],
+    ["m", "މ"],
 
-    [',', '،'], [';', '؛'], ['?', '؟'], ['<', '>'], ['>', '<'],
-    ['[', ']'], [']', '['], ['(', ')'], [')', '('], ['{', '}'], ['}', '{']
+    ["Q", "ޤ"],
+    ["W", "ޢ"],
+    ["E", "ޭ"],
+    ["R", "ޜ"],
+    ["T", "ޓ"],
+    ["Y", "ޠ"],
+    ["U", "ޫ"],
+    ["I", "ީ"],
+    ["O", "ޯ"],
+    ["P", "÷"],
+    ["A", "ާ"],
+    ["S", "ށ"],
+    ["D", "ޑ"],
+    ["F", "ﷲ"],
+    ["G", "ޣ"],
+    ["H", "ޙ"],
+    ["J", "ޛ"],
+    ["K", "ޚ"],
+    ["L", "ޅ"],
+    ["Z", "ޡ"],
+    ["X", "ޘ"],
+    ["C", "ޝ"],
+    ["V", "ޥ"],
+    ["B", "ޞ"],
+    ["N", "ޏ"],
+    ["M", "ޟ"],
+
+    [",", "،"],
+    [";", "؛"],
+    ["?", "؟"],
+    ["<", ">"],
+    [">", "<"],
+    ["[", "]"],
+    ["]", "["],
+    ["(", ")"],
+    [")", "("],
+    ["{", "}"],
+    ["}", "{"],
   ]);
 
   constructor(config?: ThaanaKeyboardLayout) {
     this.config = config || { enabled: true };
   }
 
-
   public initialize(editor: HTMLElement): void {
     if (!this.config.enabled) return;
 
-    editor.classList.add('dv-rich-editor');
-    
+    editor.classList.add("dv-rich-editor");
+
     // Event listeners
-    editor.addEventListener('beforeinput', this.beforeInputEvent);
-    editor.addEventListener('input', this.inputEvent);
-    document.addEventListener('selectionchange', this.throttledSelectionChange);
-    editor.addEventListener('keydown', this.keydownEvent);
-    editor.addEventListener('click', this.clickEvent);
-    editor.addEventListener('blur', this.blurEvent);
+    editor.addEventListener("beforeinput", this.beforeInputEvent);
+    editor.addEventListener("input", this.inputEvent);
+    document.addEventListener("selectionchange", this.throttledSelectionChange);
+    editor.addEventListener("keydown", this.keydownEvent);
+    editor.addEventListener("click", this.clickEvent);
+    editor.addEventListener("blur", this.blurEvent);
   }
-  
-  
+
   private beforeInputEvent = (event: Event): void => {
     const e = event as InputEvent;
-    
+
     if (!this.config.enabled) return;
-  
-  
-    if (['deleteContentBackward', 'deleteContentForward', 'deleteByCut', 'deleteByDrag'].includes(e.inputType || '')) {
+
+    if (
+      [
+        "deleteContentBackward",
+        "deleteContentForward",
+        "deleteByCut",
+        "deleteByDrag",
+      ].includes(e.inputType || "")
+    ) {
       this.flushBuffer();
-      
+
       // Schedule DOM cleanup after browser handles the deletion
       setTimeout(() => {
         this.cleanupDOMAfterDeletion();
       }, 0);
-      
+
       return; // Let browser handle deletion
     }
-  
-    // Handle text insertion with buffering
-    if (['insertCompositionText', 'insertText'].includes(e.inputType || '')) {
-      const inputChar = (e.data || '').charAt((e.data || '').length - 1);
-  
-      // Handle space character - let browser handle but ensure clean DOM state
-      if (inputChar === ' ') {
-        this.flushBuffer();
-        
 
+    // Handle text insertion with buffering
+    if (["insertCompositionText", "insertText"].includes(e.inputType || "")) {
+      const inputChar = (e.data || "").charAt((e.data || "").length - 1);
+
+      // Handle space character - let browser handle but ensure clean DOM state
+      if (inputChar === " ") {
+        this.flushBuffer();
         this.ensureCleanDOMState();
-        
         return;
       }
-  
+
       e.preventDefault();
       e.stopPropagation();
-  
+
       this.processCharacterInput(inputChar);
     }
-    
-    // Handle paste events
-    else if (['insertFromPaste', 'insertFromDrop', 'insertReplacementText', 'insertFromYank'].includes(e.inputType || '')) {
+
+    // Handle paste events - FIXED: Don't auto-convert everything
+    else if (
+      [
+        "insertFromPaste",
+        "insertFromDrop",
+        "insertReplacementText",
+        "insertFromYank",
+      ].includes(e.inputType || "")
+    ) {
       this.flushBuffer();
-      setTimeout(() => this.handlePastedContent(), 0);
+      // Let the browser handle the paste first, then we'll process it smartly
+      setTimeout(() => this.handlePastedContentSmart(), 0);
     }
   };
-  
- 
+
   private cleanupDOMAfterDeletion(): void {
     const editorElement = document.querySelector(this.className) as HTMLElement;
     if (!editorElement) return;
-  
+
     const selection = window.getSelection();
     if (!selection) return;
-  
+
     // Store current selection
-    const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-    
+    const currentRange =
+      selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+
     try {
       // Normalize the DOM to remove empty text nodes and artifacts
       editorElement.normalize();
-      
+
       // If editor is empty or contains only whitespace, clean it completely
-      const content = editorElement.textContent || '';
-      if (content.trim() === '') {
+      const content = editorElement.textContent || "";
+      if (content.trim() === "") {
         // Clear everything and ensure single text node
-        editorElement.innerHTML = '';
-        const textNode = document.createTextNode('');
+        editorElement.innerHTML = "";
+        const textNode = document.createTextNode("");
         editorElement.appendChild(textNode);
-        
+
         // Position cursor at the start
         const newRange = document.createRange();
         newRange.setStart(textNode, 0);
         newRange.setEnd(textNode, 0);
         selection.removeAllRanges();
         selection.addRange(newRange);
-        
+
         this.lastSelection = { node: textNode, offset: 0 };
       } else {
         // Restore selection if content exists
@@ -156,75 +272,70 @@ export class ThaanaInput {
           }
         }
       }
-      
     } catch (error) {
-      console.warn('ThaanaInput: Error during DOM cleanup:', error);
+      console.warn("ThaanaInput: Error during DOM cleanup:", error);
       // Fallback: ensure cursor is positioned properly
       this.placeCursorAtEnd(editorElement);
     }
   }
-  
 
   private ensureCleanDOMState(): void {
     const editorElement = document.querySelector(this.className) as HTMLElement;
     if (!editorElement) return;
-    
+
     try {
       // Quick normalize to clean up any loose text nodes
       editorElement.normalize();
-      
+
       // Ensure we have a proper text node for cursor positioning
       if (editorElement.childNodes.length === 0) {
-        const textNode = document.createTextNode('');
+        const textNode = document.createTextNode("");
         editorElement.appendChild(textNode);
       }
     } catch (error) {
-      console.warn('ThaanaInput: Error ensuring clean DOM state:', error);
+      console.warn("ThaanaInput: Error ensuring clean DOM state:", error);
     }
   }
-  
 
   private placeCursorAtEnd(editorElement: HTMLElement): void {
     const selection = window.getSelection();
     if (!selection) return;
-    
+
     try {
       const range = document.createRange();
-      
+
       // Find the last text node
       const walker = document.createTreeWalker(
         editorElement,
         NodeFilter.SHOW_TEXT,
-        null,
+        null
       );
-      
+
       let lastTextNode = null;
       let node;
-      while (node = walker.nextNode()) {
+      while ((node = walker.nextNode())) {
         lastTextNode = node;
       }
-      
+
       if (lastTextNode) {
         range.setStart(lastTextNode, lastTextNode.textContent?.length || 0);
         range.setEnd(lastTextNode, lastTextNode.textContent?.length || 0);
       } else {
         // No text nodes, create one
-        const textNode = document.createTextNode('');
+        const textNode = document.createTextNode("");
         editorElement.appendChild(textNode);
         range.setStart(textNode, 0);
         range.setEnd(textNode, 0);
       }
-      
+
       selection.removeAllRanges();
       selection.addRange(range);
     } catch (error) {
-      console.warn('ThaanaInput: Error placing cursor:', error);
+      console.warn("ThaanaInput: Error placing cursor:", error);
     }
   }
 
-
   private processCharacterInput(char: string): void {
-
     if (this.bufferTimeout) {
       clearTimeout(this.bufferTimeout);
       this.bufferTimeout = null;
@@ -248,7 +359,6 @@ export class ThaanaInput {
     this.insertCharacterDirect(this.getChar(char));
   }
 
-
   private handleAkuruInput(char: string): void {
     // clear the buffer if it already has a akuru
     if (this.AkuruBuffer) {
@@ -267,11 +377,10 @@ export class ThaanaInput {
 
     // wait till 500ms to see if a fili comes and flush
     this.bufferTimeout = setTimeout(() => {
-      this.clearBuffer(); 
+      this.clearBuffer();
     }, 500);
   }
 
-  
   private handleFiliInput(char: string): void {
     if (this.expectingFili && this.AkuruBuffer && this.isBufferInserted) {
       // akuru + fili by replacing the last character
@@ -285,18 +394,17 @@ export class ThaanaInput {
     }
   }
 
-
   private insertCharacterDirect(char: string): void {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
     const textNode = range.startContainer;
-    
+
     if (textNode.nodeType !== Node.TEXT_NODE) {
       const newTextNode = document.createTextNode(char);
       range.insertNode(newTextNode);
-      
+
       const newRange = document.createRange();
       newRange.setStartAfter(newTextNode);
       newRange.setEndAfter(newTextNode);
@@ -305,9 +413,9 @@ export class ThaanaInput {
       return;
     }
 
-    const textContent = textNode.textContent || '';
+    const textContent = textNode.textContent || "";
     const offset = range.startOffset;
-    
+
     const beforeChar = textContent.substring(0, offset);
     const afterChar = textContent.substring(offset);
     const newText = beforeChar + char + afterChar;
@@ -316,21 +424,20 @@ export class ThaanaInput {
     //  DOM update with cursor positioning
     try {
       textNode.textContent = newText;
-      
+
       const newRange = document.createRange();
       const safePosition = Math.min(newCursorPosition, newText.length);
       newRange.setStart(textNode, safePosition);
       newRange.setEnd(textNode, safePosition);
       selection.removeAllRanges();
       selection.addRange(newRange);
-      
+
       this.lastSelection = { node: textNode, offset: newCursorPosition };
       this.selectionChanged = false;
     } catch (error) {
-      console.warn('ThaanaInput: Error inserting character:', error);
+      console.warn("ThaanaInput: Error inserting character:", error);
     }
   }
-
 
   private replaceLastCharacter(newChar: string): void {
     const selection = window.getSelection();
@@ -338,12 +445,12 @@ export class ThaanaInput {
 
     const range = selection.getRangeAt(0);
     const textNode = range.startContainer;
-    
+
     if (textNode.nodeType !== Node.TEXT_NODE) return;
 
-    const textContent = textNode.textContent || '';
+    const textContent = textNode.textContent || "";
     const offset = range.startOffset;
-    
+
     if (offset > 0) {
       const beforeChar = textContent.substring(0, offset - 1);
       const afterChar = textContent.substring(offset);
@@ -353,22 +460,21 @@ export class ThaanaInput {
       // Direct DOM update
       try {
         textNode.textContent = newText;
-        
+
         const newRange = document.createRange();
         const safePosition = Math.min(newCursorPosition, newText.length);
         newRange.setStart(textNode, safePosition);
         newRange.setEnd(textNode, safePosition);
         selection.removeAllRanges();
         selection.addRange(newRange);
-        
+
         this.lastSelection = { node: textNode, offset: newCursorPosition };
         this.selectionChanged = false;
       } catch (error) {
-        console.warn('ThaanaInput: Error replacing character:', error);
+        console.warn("ThaanaInput: Error replacing character:", error);
       }
     }
   }
-
 
   private flushBuffer(): void {
     if (this.AkuruBuffer) {
@@ -376,20 +482,19 @@ export class ThaanaInput {
     }
   }
 
-
   private clearBuffer(): void {
-    this.AkuruBuffer = '';
-    this.lastAkuru = '';
+    this.AkuruBuffer = "";
+    this.lastAkuru = "";
     this.expectingFili = false;
     this.isBufferInserted = false;
-    
+
     if (this.bufferTimeout) {
       clearTimeout(this.bufferTimeout);
       this.bufferTimeout = null;
     }
   }
 
-  // Moree event handlers..
+  // More event handlers..
   private throttledSelectionChange = this.throttle(() => {
     this.selectionChanged = true;
     this.flushBuffer();
@@ -437,57 +542,63 @@ export class ThaanaInput {
     };
   }
 
-  private handlePastedContent(): void {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const container = range.startContainer;
-    
-    let editorElement: HTMLElement | null = null;
-    if (container.nodeType === Node.TEXT_NODE) {
-      editorElement = container.parentElement;
-    } else if (container.nodeType === Node.ELEMENT_NODE) {
-      editorElement = container as HTMLElement;
-    }
-
-    while (editorElement && !editorElement.classList.contains('dv-rich-editor')) {
-      editorElement = editorElement.parentElement;
-    }
-
-    if (editorElement) {
-      // BAD idea security wise , need to fix this
-      const textContent = editorElement.textContent || '';
-      const convertedText = this.convertToThaana(textContent);
-      
-      if (textContent !== convertedText) {
-        editorElement.textContent = convertedText;
-        
-        const newRange = document.createRange();
-        const textNode = editorElement.firstChild || editorElement;
-        if (textNode.nodeType === Node.TEXT_NODE) {
-          newRange.setStart(textNode, convertedText.length);
-          newRange.setEnd(textNode, convertedText.length);
-        } else {
-          newRange.setStartAfter(textNode);
-          newRange.setEndAfter(textNode);
-        }
-        
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-      }
-    }
+  private handlePastedContentSmart(): void {
+    // Just ensure clean DOM state
+    this.ensureCleanDOMState();
   }
 
-  // Public methods
+  // Old problematic paste handler (now unused)
+  // private handlePastedContent(): void {
+
+  // }
+
+  private shouldConvertText(text: string): boolean {
+    // Don't convert if text contains markdown syntax
+    if (/[#*`>\-\[\](){}]/.test(text)) {
+      return false;
+    }
+
+    // Don't convert if text contains URLs
+    if (/https?:\/\/|www\./i.test(text)) {
+      return false;
+    }
+
+    // Don't convert if text is mostly English words (3+ letter sequences)
+    const englishWords = text.match(/\b[a-zA-Z]{3,}\b/g);
+    if (englishWords && englishWords.length > 2) {
+      return false;
+    }
+
+    // Don't convert code blocks or inline code
+    if (/```|`/.test(text)) {
+      return false;
+    }
+
+    // Don't convert numbers and common punctuation
+    if (/^\d+[\d\s.,;:()-]*$/.test(text.trim())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Selective conversion that preserves markdown
+  public convertToThaanaSelective(text: string): string {
+    if (!this.shouldConvertText(text)) {
+      return text; // Return unchanged if it shouldn't be converted
+    }
+
+    return this.convertToThaana(text);
+  }
+
   public convertToThaana(text: string): string {
-    let result = '';
+    let result = "";
     let i = 0;
-    
+
     while (i < text.length) {
       const char = text[i];
-      
 
+      // Handle akuru + fili combinations
       if (ThaanaInput.AKURU.has(char) && i + 1 < text.length) {
         const nextChar = text[i + 1];
         if (ThaanaInput.FILI.has(nextChar)) {
@@ -496,17 +607,54 @@ export class ThaanaInput {
           continue;
         }
       }
-      
+
       result += this.getChar(char);
       i++;
     }
-    
+
     return result;
+  }
+
+  // Manual conversion method for user-triggered conversion
+  public convertSelectedTextToThaana(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = selection.toString();
+
+    if (!selectedText.trim()) return false;
+
+    // Always convert when manually triggered
+    const convertedText = this.convertToThaana(selectedText);
+
+    if (selectedText !== convertedText) {
+      try {
+        // Replace selected text with converted text
+        range.deleteContents();
+        const textNode = document.createTextNode(convertedText);
+        range.insertNode(textNode);
+
+        // Position cursor after inserted text
+        const newRange = document.createRange();
+        newRange.setStartAfter(textNode);
+        newRange.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+
+        return true;
+      } catch (error) {
+        console.error("ThaanaInput: Error converting selected text:", error);
+        return false;
+      }
+    }
+
+    return false;
   }
 
   public setEnabled(enabled: boolean): void {
     this.config.enabled = enabled;
-    
+
     if (!enabled) {
       this.flushBuffer();
     }
@@ -522,13 +670,16 @@ export class ThaanaInput {
 
   public destroy(): void {
     this.flushBuffer();
-    
-    document.removeEventListener('selectionchange', this.throttledSelectionChange);
-    
+
+    document.removeEventListener(
+      "selectionchange",
+      this.throttledSelectionChange
+    );
+
     if (this.bufferTimeout) {
       clearTimeout(this.bufferTimeout);
     }
-    
+
     this.lastSelection = null;
     this.clearBuffer();
   }

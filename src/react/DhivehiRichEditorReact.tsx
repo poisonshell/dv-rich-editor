@@ -1,4 +1,13 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef, createContext, useContext, useState } from 'react';
+import React, { 
+  useEffect, 
+  useRef, 
+  useImperativeHandle, 
+  forwardRef, 
+  createContext, 
+  useContext, 
+  useState, 
+  useCallback 
+} from 'react';
 import { DhivehiRichEditor } from '../editor/DhivehiRichEditor';
 import type { EditorConfig, EditorInstance, ImageData, FormatType } from '../types';
 
@@ -11,22 +20,42 @@ export interface DhivehiRichEditorProps extends Omit<EditorConfig, 'container'> 
   onImageUrlRequest?: () => Promise<string>;
 }
 
-export interface DhivehiRichEditorRef extends EditorInstance {
-  // Ensure these methods are properly typed
+
+export interface DhivehiRichEditorRef {
+  // Core editor methods
+  setThaanaEnabled: (enabled: boolean) => void;
+  getMarkdown: () => string;
+  setMarkdown: (content: string, preserveFocus?: boolean) => void;
+  focus: () => void;
+  blur: () => void;
+  insertText: (text: string) => void;
+  insertImage: (imageData: ImageData) => void;
+  openImageDialog: () => Promise<void>;
+  copyToClipboard: () => Promise<boolean>;
+  pasteFromClipboard: () => Promise<boolean>;
+  appendContent: (content: string) => void;
+  updateTheme: (theme?: any, themeName?: any, styling?: any) => void;
+  clear: () => void;
+  destroy: () => void;
+  getSelection: () => { start: number; end: number; text: string };
   applyFormat: (format: FormatType) => void;
   isFormatActive: (format: FormatType) => boolean;
   removeFormat: (format: FormatType) => void;
+  insertThaanaText?: (text: string) => void;
+  convertContentToThaana?: () => void;
+  updateThaanaKeyMap?: (keyMap: Record<string, string>) => void;
+  getThaanaConfig?: () => any;
 }
 
-// Context for editor instance (for hook support)
+// Context for editor instance
 const EditorContext = createContext<DhivehiRichEditor | null>(null);
 
-// React wrapper
 export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorProps>(
-  (props, ref) => {
+  function DVRichEditor(props, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<DhivehiRichEditor | null>(null);
     const [editorInstance, setEditorInstance] = useState<DhivehiRichEditor | null>(null);
+    const [isEditorReady, setIsEditorReady] = useState(false);
     
     const {
       className = '',
@@ -38,12 +67,47 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
       ...editorConfig
     } = props;
 
+  
     const latestCallbacks = useRef({
       onChange,
       onFocus,
       onBlur,
       onImageUrlRequest
     });
+
+    // Update callbacks without causing re-renders
+    useEffect(() => {
+      latestCallbacks.current = {
+        onChange,
+        onFocus,
+        onBlur,
+        onImageUrlRequest
+      };
+    }, [onChange, onFocus, onBlur, onImageUrlRequest]);
+
+
+    const safeEditorCall = useCallback(<T extends any[], R>(
+      methodName: string,
+      method: ((...args: T) => R) | undefined,
+      ...args: T
+    ): R | undefined => {
+      if (!isEditorReady || !editorRef.current) {
+        console.warn(`⚠️ Editor not ready for ${methodName}`);
+        return undefined;
+      }
+      
+      if (!method || typeof method !== 'function') {
+        console.warn(`⚠️ Method ${methodName} not available`);
+        return undefined;
+      }
+      
+      try {
+        return method.apply(editorRef.current, args);
+      } catch (error) {
+        console.error(`❌ Error calling ${methodName}:`, error);
+        return undefined;
+      }
+    }, [isEditorReady]);
 
     // Initialize editor
     useEffect(() => {
@@ -58,9 +122,14 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
             onImageUrlRequest: () => latestCallbacks.current.onImageUrlRequest?.() || Promise.resolve(''),
           };
 
+      
           editorRef.current = new DhivehiRichEditor(config);
-  
           setEditorInstance(editorRef.current);
+          
+          // Set ready state after editor is fully initialized
+          setTimeout(() => {
+            setIsEditorReady(true);
+          }, 100);
           
         } catch (error) {
           console.error('❌ Failed to initialize editor:', error);
@@ -69,163 +138,138 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
 
       return () => {
         if (editorRef.current) {
+     
           editorRef.current.destroy();
           editorRef.current = null;
           setEditorInstance(null);
+          setIsEditorReady(false);
         }
       };
-    }, []); 
+    }, []); // Empty dependency array is correct here
 
+    // Update theme when theme config changes
     useEffect(() => {
-      latestCallbacks.current = {
-        onChange,
-        onFocus,
-        onBlur,
-        onImageUrlRequest
-      };
-    }, [onChange, onFocus, onBlur, onImageUrlRequest]);
-
-    // Update theme
-    useEffect(() => {
-      if (editorRef.current && editorRef.current.updateTheme) {
-        editorRef.current.updateTheme(editorConfig.theme, editorConfig.theme?.name as any, editorConfig.styling);
+      if (editorRef.current && isEditorReady && editorRef.current.updateTheme) {
+        try {
+          editorRef.current.updateTheme(
+            editorConfig.theme, 
+            editorConfig.theme?.name as any, 
+            editorConfig.styling
+          );
+        } catch (error) {
+          console.error('❌ Error updating theme:', error);
+        }
       }
-    }, [editorConfig.theme?.name, editorConfig.styling, JSON.stringify(editorConfig.theme)]);
+    }, [editorConfig.theme?.name, editorConfig.styling, isEditorReady]);
 
-
-    useImperativeHandle(ref, () => ({
-      // Core methods
-      setThaanaEnabled: (enabled: boolean) => {
-        editorRef.current?.setThaanaEnabled(enabled);
-      },
-      
-      getMarkdown: () => {
-        const result = editorRef.current?.getMarkdown() || '';
-        return result;
-      },
-      
-      setMarkdown: (content: string, preserveFocus?: boolean) => {
-
-        editorRef.current?.setMarkdown(content, preserveFocus);
-      },
-      
-      focus: () => {
-
-        editorRef.current?.focus();
-      },
-      
-      blur: () => {
-  
-        editorRef.current?.blur();
-      },
-      
-      insertText: (text: string) => {
-
-        editorRef.current?.insertText(text);
-      },
-      
-      insertImage: (imageData: ImageData) => {
-     
-        editorRef.current?.insertImage(imageData);
-      },
-      
-      openImageDialog: () => {
-
-        return editorRef.current?.openImageDialog() || Promise.resolve();
-      },
-      
-      // FORMATTING METHODS - many issues here we need this for awhile debugging
-      applyFormat: (format: FormatType) => {
-     
+    // ✅ FIXED: Stable imperative handle with proper typing
+    useImperativeHandle(
+      ref,
+      (): DhivehiRichEditorRef => ({
+        // Core methods
+        setThaanaEnabled: (enabled: boolean): void => {
+          safeEditorCall('setThaanaEnabled', editorRef.current?.setThaanaEnabled, enabled);
+        },
         
-        if (!editorRef.current) {
-      
-          return;
-        }
+        getMarkdown: (): string => {
+          return safeEditorCall('getMarkdown', editorRef.current?.getMarkdown) || '';
+        },
         
-        if (!editorRef.current.applyFormat) {
- 
-          return;
-        }
+        setMarkdown: (content: string, preserveFocus?: boolean): void => {
+          safeEditorCall('setMarkdown', editorRef.current?.setMarkdown, content, preserveFocus);
+        },
         
-        if (typeof editorRef.current.applyFormat !== 'function') {
-     
-          return;
-        }
+        focus: (): void => {
+          safeEditorCall('focus', editorRef.current?.focus);
+        },
         
-        try {
-          editorRef.current.applyFormat(format);
-
-        } catch (error) {
-          console.error('❌ applyFormat failed with error:', error);
-          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
-        }
-      },
-      
-      isFormatActive: (format: FormatType) => {
-   
+        blur: (): void => {
+          safeEditorCall('blur', editorRef.current?.blur);
+        },
         
-        if (!editorRef.current) {
- 
-          return false;
-        }
+        insertText: (text: string): void => {
+          safeEditorCall('insertText', editorRef.current?.insertText, text);
+        },
         
-        if (!editorRef.current.isFormatActive) {
-  
-          return false;
-        }
+        insertImage: (imageData: ImageData): void => {
+          safeEditorCall('insertImage', editorRef.current?.insertImage, imageData);
+        },
         
-        try {
-          const result = editorRef.current.isFormatActive(format);
-
-          return result;
-        } catch (error) {
-      
-          return false;
-        }
-      },
-      
-      removeFormat: (format: FormatType) => {
-   
-        if (editorRef.current && editorRef.current.removeFormat) {
-          editorRef.current.removeFormat(format);
-        }
-      },
-      
-      // Other methods
-      copyToClipboard: () => editorRef.current?.copyToClipboard() || Promise.resolve(false),
-      pasteFromClipboard: () => editorRef.current?.pasteFromClipboard() || Promise.resolve(false),
-      appendContent: (content: string) => editorRef.current?.appendContent(content),
-      updateTheme: (theme?: any, themeName?: any, styling?: any) => {
-        editorRef.current?.updateTheme?.(theme, themeName, styling);
-      },
-      clear: () => editorRef.current?.clear(),
-      destroy: () => editorRef.current?.destroy(),
-      getSelection: () => editorRef.current?.getSelection() || { start: 0, end: 0, text: '' },
-      
-      // Thaana-specific methods
-      insertThaanaText: (text: string) => {
-        if (editorRef.current && 'insertThaanaText' in editorRef.current) {
-          (editorRef.current as any).insertThaanaText(text);
-        }
-      },
-      convertContentToThaana: () => {
-        if (editorRef.current && 'convertContentToThaana' in editorRef.current) {
-          (editorRef.current as any).convertContentToThaana();
-        }
-      },
-      updateThaanaKeyMap: (keyMap: Record<string, string>) => {
-        if (editorRef.current && 'updateThaanaKeyMap' in editorRef.current) {
-          (editorRef.current as any).updateThaanaKeyMap(keyMap);
-        }
-      },
-      getThaanaConfig: () => {
-        if (editorRef.current && 'getThaanaConfig' in editorRef.current) {
-          return (editorRef.current as any).getThaanaConfig();
-        }
-        return {};
-      },
-    }), [editorInstance]); 
+        openImageDialog: (): Promise<void> => {
+          return safeEditorCall('openImageDialog', editorRef.current?.openImageDialog) || Promise.resolve();
+        },
+        
+        // Formatting methods - the core functionality we need
+        applyFormat: (format: FormatType): void => {
+          console.log('🎨 applyFormat called with:', format);
+          safeEditorCall('applyFormat', editorRef.current?.applyFormat, format);
+        },
+        
+        isFormatActive: (format: FormatType): boolean => {
+          return safeEditorCall('isFormatActive', editorRef.current?.isFormatActive, format) || false;
+        },
+        
+        removeFormat: (format: FormatType): void => {
+          safeEditorCall('removeFormat', editorRef.current?.removeFormat, format);
+        },
+        
+        // Other methods
+        copyToClipboard: (): Promise<boolean> => {
+          return safeEditorCall('copyToClipboard', editorRef.current?.copyToClipboard) || Promise.resolve(false);
+        },
+        
+        pasteFromClipboard: (): Promise<boolean> => {
+          return safeEditorCall('pasteFromClipboard', editorRef.current?.pasteFromClipboard) || Promise.resolve(false);
+        },
+        
+        appendContent: (content: string): void => {
+          safeEditorCall('appendContent', editorRef.current?.appendContent, content);
+        },
+        
+        updateTheme: (theme?: any, themeName?: any, styling?: any): void => {
+          safeEditorCall('updateTheme', editorRef.current?.updateTheme, theme, themeName, styling);
+        },
+        
+        clear: (): void => {
+          safeEditorCall('clear', editorRef.current?.clear);
+        },
+        
+        destroy: (): void => {
+          safeEditorCall('destroy', editorRef.current?.destroy);
+        },
+        
+        getSelection: () => {
+          return safeEditorCall('getSelection', editorRef.current?.getSelection) || { start: 0, end: 0, text: '' };
+        },
+        
+        // Optional Thaana-specific methods with proper type checking
+        insertThaanaText: (text: string): void => {
+          if (editorRef.current && 'insertThaanaText' in editorRef.current) {
+            safeEditorCall('insertThaanaText', (editorRef.current as any).insertThaanaText, text);
+          }
+        },
+        
+        convertContentToThaana: (): void => {
+          if (editorRef.current && 'convertContentToThaana' in editorRef.current) {
+            safeEditorCall('convertContentToThaana', (editorRef.current as any).convertContentToThaana);
+          }
+        },
+        
+        updateThaanaKeyMap: (keyMap: Record<string, string>): void => {
+          if (editorRef.current && 'updateThaanaKeyMap' in editorRef.current) {
+            safeEditorCall('updateThaanaKeyMap', (editorRef.current as any).updateThaanaKeyMap, keyMap);
+          }
+        },
+        
+        getThaanaConfig: (): any => {
+          if (editorRef.current && 'getThaanaConfig' in editorRef.current) {
+            return safeEditorCall('getThaanaConfig', (editorRef.current as any).getThaanaConfig) || {};
+          }
+          return {};
+        },
+      }),
+      [safeEditorCall] // Only depend on the stable safeEditorCall function
+    );
 
     return (
       <EditorContext.Provider value={editorInstance}> 
@@ -245,6 +289,7 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
   }
 );
 
+// Set display name for better debugging
 DVRichEditor.displayName = 'DVRichEditor';
 
 
@@ -252,37 +297,46 @@ export function useDhivehiEditor() {
   const editor = useContext(EditorContext);
   
   return {
-    applyFormat: (format: FormatType) => {
- 
-      if (editor && editor.applyFormat) {
+    applyFormat: (format: FormatType): void => {
+      console.log('🎨 useDhivehiEditor applyFormat called with:', format);
+      if (editor?.applyFormat && typeof editor.applyFormat === 'function') {
         try {
           editor.applyFormat(format);
-
+         
         } catch (error) {
-
+          console.error('❌ useDhivehiEditor applyFormat error:', error);
         }
       } else {
         console.warn('⚠️ useDhivehiEditor: Editor not available or applyFormat missing');
       }
     },
     
-    isFormatActive: (format: FormatType) => {
-      if (editor && editor.isFormatActive) {
-        return editor.isFormatActive(format);
+    isFormatActive: (format: FormatType): boolean => {
+      if (editor?.isFormatActive && typeof editor.isFormatActive === 'function') {
+        try {
+          return editor.isFormatActive(format);
+        } catch (error) {
+          console.error('❌ useDhivehiEditor isFormatActive error:', error);
+          return false;
+        }
       }
-      console.warn('⚠️ useDhivehiEditor: isFormatActive not available');
       return false;
     },
     
-    removeFormat: (format: FormatType) => {
-      if (editor && editor.removeFormat) {
-        editor.removeFormat(format);
+    removeFormat: (format: FormatType): void => {
+      if (editor?.removeFormat && typeof editor.removeFormat === 'function') {
+        try {
+          editor.removeFormat(format);
+        } catch (error) {
+          console.error('❌ useDhivehiEditor removeFormat error:', error);
+        }
       } else {
         console.warn('⚠️ useDhivehiEditor: removeFormat not available');
       }
     },
     
-    editor: editor
+    editor: editor,
+    isReady: !!editor
   };
 }
 
