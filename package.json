@@ -27,7 +27,7 @@
     "build": "npm run clean && npm run compile",
     "compile": "npm run compile:core && npm run compile:react",
     "compile:core": "tsc && rollup -c",
-    "compile:react": "tsc -p tsconfig.react.json && rollup -c rollup.config.react.js && cp dist/react/react/index.d.ts dist/react/index.d.ts 2>/dev/null || true",
+    "compile:react": "tsc -p tsconfig.react.json && rollup -c rollup.config.react.js && mv dist/react/react/* dist/react/ 2>/dev/null || true && rm -rf dist/react/react 2>/dev/null || true",
     "bundle": "rollup -c && rollup -c rollup.config.react.js",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
