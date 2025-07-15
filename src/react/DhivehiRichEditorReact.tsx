@@ -201,7 +201,7 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
         
         // Formatting methods - the core functionality we need
         applyFormat: (format: FormatType): void => {
-          console.log('🎨 applyFormat called with:', format);
+
           safeEditorCall('applyFormat', editorRef.current?.applyFormat, format);
         },
         
@@ -298,7 +298,7 @@ export function useDhivehiEditor() {
   
   return {
     applyFormat: (format: FormatType): void => {
-      console.log('🎨 useDhivehiEditor applyFormat called with:', format);
+   
       if (editor?.applyFormat && typeof editor.applyFormat === 'function') {
         try {
           editor.applyFormat(format);

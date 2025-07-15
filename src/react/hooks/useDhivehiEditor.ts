@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import type { DhivehiRichEditorRef } from '../DhivehiRichEditorReact';
 import type { ImageData, FormatType } from '../../types';
 

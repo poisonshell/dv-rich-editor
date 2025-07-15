@@ -23,8 +23,7 @@ export class MarkdownFormatter {
   }
 
   public markdownToHtml(markdown: string): string {
-    console.log('🔧 MarkdownFormatter: Converting markdown to HTML');
-    console.log('Input markdown:', markdown);
+
 
 
     const normalizedMarkdown = markdown.normalize('NFC');
@@ -40,7 +39,7 @@ export class MarkdownFormatter {
       const line = lines[i];
       const trimmedLine = line.trim();
 
-      console.log(`Processing line ${i}: "${line}" (trimmed: "${trimmedLine}")`);
+    
 
 
       if (trimmedLine.startsWith('```')) {
@@ -68,27 +67,27 @@ export class MarkdownFormatter {
         html += `</${listType}>`;
         inList = false;
         listType = '';
-        console.log('Closed list due to non-list content');
+      
       }
 
-
-      const listMatch = this.detectListItem(trimmedLine);
+      // Check for list items (with null safety)
+      const listMatch = trimmedLine ? this.detectListItem(trimmedLine) : null;
       if (listMatch) {
         const { isOrdered, content } = listMatch;
         const currentListType = isOrdered ? 'ol' : 'ul';
         
-        console.log(`Found list item: ordered=${isOrdered}, content="${content}"`);
+        
         
         if (!inList) {
           html += `<${currentListType}>`;
           inList = true;
           listType = currentListType;
-          console.log(`Started new ${currentListType} list`);
+         
         } else if (listType !== currentListType) {
           // Switch list type
           html += `</${listType}><${currentListType}>`;
           listType = currentListType;
-          console.log(`Switched to ${currentListType} list`);
+  
         }
         
         html += `<li>${this.processInlineFormatting(content)}</li>`;
@@ -125,10 +124,10 @@ export class MarkdownFormatter {
     }
     if (inList) {
       html += `</${listType}>`;
-      console.log(`Closed ${listType} list at end of content`);
+     
     }
 
-    console.log('Final HTML output:', html);
+
     return html;
   }
 
@@ -141,7 +140,7 @@ export class MarkdownFormatter {
     // Check for numbered lists first
     const numberedMatch = line.match(numberedPattern);
     if (numberedMatch) {
-      console.log('Matched numbered list:', numberedMatch);
+     
       return {
         isOrdered: true,
         content: numberedMatch[3].trim()
@@ -151,7 +150,7 @@ export class MarkdownFormatter {
     // Check for bullet lists
     const bulletMatch = line.match(bulletPattern);
     if (bulletMatch) {
-      console.log('Matched bullet list:', bulletMatch);
+     
       return {
         isOrdered: false,
         content: bulletMatch[3].trim()
@@ -163,7 +162,7 @@ export class MarkdownFormatter {
 
   
   private isListItem(line: string): boolean {
-    return this.detectListItem(line) !== null;
+    return line ? this.detectListItem(line) !== null : false;
   }
 
 

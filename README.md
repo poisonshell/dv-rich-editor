@@ -42,17 +42,44 @@ function MyEditor() {
 }
 ```
 
+
 ### Vanilla JavaScript
+
+#### Using a Bundler (Webpack, Vite, Parcel, etc.)
 
 ```javascript
 import { DhivehiRichEditor } from 'dv-rich-editor';
 
 const editor = new DhivehiRichEditor({
-  container: '#editor',
-  placeholder: 'ލިޔުއްވާށެވެ...',
-  onChange: (markdown) => console.log(markdown),
-  theme: { name: 'dark' }
+    container: '#editor-container',
+    placeholder: 'ލިޔުއްވާށެވެ...',
+    onChange: (markdown) => console.log(markdown)
 });
+```
+
+#### Using UMD Bundle (Plain HTML)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DV Rich Editor</title>
+    <script src="dist/dv-rich-editor.umd.js"></script>
+</head>
+<body>
+    <div id="editor-container"></div>
+    
+    <script>
+        const { DhivehiRichEditor } = window.DVRichEditor;
+        
+        const editor = new DhivehiRichEditor({
+            container: '#editor-container',
+            placeholder: 'ލިޔުއްވާށެވެ...',
+            onChange: (markdown) => console.log(markdown)
+        });
+    </script>
+</body>
+</html>
 ```
 
 

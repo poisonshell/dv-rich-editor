@@ -674,7 +674,6 @@ export class DhivehiRichEditor implements EditorInstance {
   public setMarkdown(content: string, preserveFocus: boolean = false): void {
     const html = this.markdownFormatter.markdownToHtml(content);
     const hadFocus = this.editor === document.activeElement;
-    const selection = hadFocus ? this.getSelection() : null;
 
     this.suppressOnChange = true;
     this.editor.innerHTML = html;
@@ -844,7 +843,7 @@ export class DhivehiRichEditor implements EditorInstance {
         break;
       }
 
-      if (line && !line.startsWith("-") && !numberMatch) {
+      if (line && !line.startsWith("-")) {
         break;
       }
     }
@@ -1496,7 +1495,7 @@ export class DhivehiRichEditor implements EditorInstance {
         startNodeOffset = start - currentOffset;
       }
 
-      if (!endNode && currentOffset + nodeLength >= end) {
+      if (currentOffset + nodeLength >= end) {
         endNode = node;
         endNodeOffset = end - currentOffset;
         break;
