@@ -8,7 +8,8 @@ yarn-error.log*
 dist/
 *.tsbuildinfo
 
-# custom tests files
+# Temporary / generated files
+# NOTE: examples/, docs/, tests/, bench/ are private in this repo and should be ignored.
 examples/
 docs/
 tests/
@@ -64,9 +65,7 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-.env.test
-
+# (already listed above)
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -95,5 +94,3 @@ jspm_packages/
 # Debug files
 debug-thaana.html
 
-# Lock files (for libraries)
-package-lock.json 

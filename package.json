@@ -1,6 +1,6 @@
 {
   "name": "dv-rich-editor",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "type": "module",
   "description": "A Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
   "main": "dist/index.js",
@@ -34,11 +34,11 @@
     }
   },
   "scripts": {
-  "build": "npm run clean && npm run compile",
+    "build": "npm run clean && npm run compile",
     "check:react-entry": "npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit",
-  "compile": "npm run bundle && npm run compile:types",
-  "bundle": "rollup -c && rollup -c rollup.config.react.js",
-  "compile:types": "npx -y tsc -b tsconfig.core.json --force",
+    "compile": "npm run bundle && npm run compile:types",
+    "bundle": "rollup -c && rollup -c rollup.config.react.js",
+    "compile:types": "npx -y tsc -b tsconfig.core.json --force",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "dev:react": "tsc -p tsconfig.react.json --watch",
@@ -74,7 +74,7 @@
     "rollup": "^4.9.0",
     "tslib": "^2.6.2",
     "typescript": "^5.3.0",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",

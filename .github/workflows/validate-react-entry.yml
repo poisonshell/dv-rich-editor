@@ -15,7 +15,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Install
+      - name: Install dependencies
+        # Use `npm ci` for reproducible installs now that package-lock.json exists.
         run: npm ci
       - name: Build
         run: npm run build
