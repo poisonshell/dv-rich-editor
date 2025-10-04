@@ -1,171 +1,43 @@
 import { ThaanaKeyboardLayout } from "../types";
+import { AKURU, FILI, IMMEDIATE_CHARS, STANDARD_CHAR_MAP, LAYOUTS, LayoutName } from "./constants";
+
+interface EmitterLike {
+  emit: (event: string, payload: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+}
 
 export class ThaanaInput {
   private config: ThaanaKeyboardLayout;
-  private className: string = ".dv-rich-editor";
-
-  private AkuruBuffer: string = "";
-  private lastAkuru: string = "";
-  private expectingFili: boolean = false;
-  private bufferTimeout: number | null = null;
-  private isBufferInserted: boolean = false;
-
+  private className = ".dv-rich-editor";
+  private hostEditorEl: HTMLElement | null = null; // reference for synthetic input events
+  private AkuruBuffer = "";
+  private lastAkuru = "";
+  private expectingFili = false;
+  private bufferTimeout: ReturnType<typeof setTimeout> | null = null;
+  private isBufferInserted = false;
   private lastSelection: { node: Node; offset: number } | null = null;
   private selectionChanged = true;
+  private activeLayout: Record<string, string> = STANDARD_CHAR_MAP;
+  private layoutName: string = "standard";
+  private emitter?: EmitterLike;
+  private emitBufferEvents = true; // can be toggled to disable ime-buffer events
+  private recentKeyTimestamps: number[] = []; // sliding window for burst detection
+  private burstSuppressed = false;
 
-  //categorization for buffering
-  private static readonly AKURU = new Set([
-    "d",
-    "k",
-    "s",
-    "t",
-    "f",
-    "g",
-    "h",
-    "j",
-    "l",
-    "z",
-    "v",
-    "b",
-    "n",
-    "m",
-    "r",
-    "y",
-    "p",
-    "c",
-    "D",
-    "K",
-    "S",
-    "T",
-    "F",
-    "G",
-    "H",
-    "J",
-    "L",
-    "Z",
-    "V",
-    "B",
-    "N",
-    "M",
-    "R",
-    "Y",
-    "P",
-    "C",
-  ]);
-
-  private static readonly FILI = new Set([
-    "a",
-    "i",
-    "u",
-    "e",
-    "o",
-    "q",
-    "A",
-    "I",
-    "U",
-    "E",
-    "O",
-  ]);
-
-  private static readonly IMMEDIATE_CHARS = new Set([
-    ".",
-    ",",
-    "!",
-    "?",
-    "\n",
-    "\t",
-    ";",
-    ":",
-    "(",
-    ")",
-    "[",
-    "]",
-    "{",
-    "}",
-    "<",
-    ">",
-    "/",
-    "\\",
-  ]);
-
-  private static readonly CHAR_MAP = new Map([
-    ["q", "ް"],
-    ["w", "އ"],
-    ["e", "ެ"],
-    ["r", "ރ"],
-    ["t", "ތ"],
-    ["y", "ޔ"],
-    ["u", "ު"],
-    ["i", "ި"],
-    ["o", "ޮ"],
-    ["p", "ޕ"],
-    ["a", "ަ"],
-    ["s", "ސ"],
-    ["d", "ދ"],
-    ["f", "ފ"],
-    ["g", "ގ"],
-    ["h", "ހ"],
-    ["j", "ޖ"],
-    ["k", "ކ"],
-    ["l", "ލ"],
-    ["z", "ޒ"],
-    ["x", "×"],
-    ["c", "ޗ"],
-    ["v", "ވ"],
-    ["b", "ބ"],
-    ["n", "ނ"],
-    ["m", "މ"],
-
-    ["Q", "ޤ"],
-    ["W", "ޢ"],
-    ["E", "ޭ"],
-    ["R", "ޜ"],
-    ["T", "ޓ"],
-    ["Y", "ޠ"],
-    ["U", "ޫ"],
-    ["I", "ީ"],
-    ["O", "ޯ"],
-    ["P", "÷"],
-    ["A", "ާ"],
-    ["S", "ށ"],
-    ["D", "ޑ"],
-    ["F", "ﷲ"],
-    ["G", "ޣ"],
-    ["H", "ޙ"],
-    ["J", "ޛ"],
-    ["K", "ޚ"],
-    ["L", "ޅ"],
-    ["Z", "ޡ"],
-    ["X", "ޘ"],
-    ["C", "ޝ"],
-    ["V", "ޥ"],
-    ["B", "ޞ"],
-    ["N", "ޏ"],
-    ["M", "ޟ"],
-
-    [",", "،"],
-    [";", "؛"],
-    ["?", "؟"],
-    ["<", ">"],
-    [">", "<"],
-    ["[", "]"],
-    ["]", "["],
-    ["(", ")"],
-    [")", "("],
-    ["{", "}"],
-    ["}", "{"],
-  ]);
-
-  constructor(config?: ThaanaKeyboardLayout) {
+  constructor(config?: ThaanaKeyboardLayout, emitter?: EmitterLike) {
     this.config = config || { enabled: true };
+    this.emitter = emitter;
+ 
+    if (config && typeof config.emitBufferEvents === 'boolean') {
+      this.emitBufferEvents = !!config.emitBufferEvents;
+    }
   }
 
   public initialize(editor: HTMLElement): void {
+    this.hostEditorEl = editor;
     if (!this.config.enabled) return;
 
     editor.classList.add("dv-rich-editor");
 
-    // Event listeners
     editor.addEventListener("beforeinput", this.beforeInputEvent);
     editor.addEventListener("input", this.inputEvent);
     document.addEventListener("selectionchange", this.throttledSelectionChange);
@@ -179,52 +51,37 @@ export class ThaanaInput {
 
     if (!this.config.enabled) return;
 
-    if (
-      [
-        "deleteContentBackward",
-        "deleteContentForward",
-        "deleteByCut",
-        "deleteByDrag",
-      ].includes(e.inputType || "")
-    ) {
+    if ([
+      "deleteContentBackward",
+      "deleteContentForward",
+      "deleteByCut",
+      "deleteByDrag",
+    ].includes(e.inputType || "")) {
       this.flushBuffer();
-
-      // Schedule DOM cleanup after browser handles the deletion
-      setTimeout(() => {
-        this.cleanupDOMAfterDeletion();
-      }, 0);
-
-      return; // Let browser handle deletion
+      setTimeout(() => this.cleanupDOMAfterDeletion(), 0);
+      return;
     }
 
-    // Handle text insertion with buffering
     if (["insertCompositionText", "insertText"].includes(e.inputType || "")) {
-      const inputChar = (e.data || "").charAt((e.data || "").length - 1);
-
-      // Handle space character - let browser handle but ensure clean DOM state
+      const inputChar = (e.data || "").slice(-1);
       if (inputChar === " ") {
         this.flushBuffer();
         this.ensureCleanDOMState();
         return;
       }
-
       e.preventDefault();
       e.stopPropagation();
-
       this.processCharacterInput(inputChar);
+      return;
     }
 
-    // Handle paste events - FIXED: Don't auto-convert everything
-    else if (
-      [
-        "insertFromPaste",
-        "insertFromDrop",
-        "insertReplacementText",
-        "insertFromYank",
-      ].includes(e.inputType || "")
-    ) {
+    if ([
+      "insertFromPaste",
+      "insertFromDrop",
+      "insertReplacementText",
+      "insertFromYank",
+    ].includes(e.inputType || "")) {
       this.flushBuffer();
-      // Let the browser handle the paste first, then we'll process it smartly
       setTimeout(() => this.handlePastedContentSmart(), 0);
     }
   };
@@ -236,23 +93,20 @@ export class ThaanaInput {
     const selection = window.getSelection();
     if (!selection) return;
 
-    // Store current selection
     const currentRange =
       selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
     try {
-      // Normalize the DOM to remove empty text nodes and artifacts
       editorElement.normalize();
 
-      // If editor is empty or contains only whitespace, clean it completely
       const content = editorElement.textContent || "";
       if (content.trim() === "") {
-        // Clear everything and ensure single text node
+      
         editorElement.innerHTML = "";
         const textNode = document.createTextNode("");
         editorElement.appendChild(textNode);
 
-        // Position cursor at the start
+      
         const newRange = document.createRange();
         newRange.setStart(textNode, 0);
         newRange.setEnd(textNode, 0);
@@ -261,20 +115,20 @@ export class ThaanaInput {
 
         this.lastSelection = { node: textNode, offset: 0 };
       } else {
-        // Restore selection if content exists
+
         if (currentRange) {
           try {
             selection.removeAllRanges();
             selection.addRange(currentRange);
           } catch (error) {
-            // If selection restoration fails, place cursor at end
+           
             this.placeCursorAtEnd(editorElement);
           }
         }
       }
     } catch (error) {
       console.warn("ThaanaInput: Error during DOM cleanup:", error);
-      // Fallback: ensure cursor is positioned properly
+
       this.placeCursorAtEnd(editorElement);
     }
   }
@@ -284,10 +138,10 @@ export class ThaanaInput {
     if (!editorElement) return;
 
     try {
-      // Quick normalize to clean up any loose text nodes
+  
       editorElement.normalize();
 
-      // Ensure we have a proper text node for cursor positioning
+  
       if (editorElement.childNodes.length === 0) {
         const textNode = document.createTextNode("");
         editorElement.appendChild(textNode);
@@ -340,23 +194,29 @@ export class ThaanaInput {
       clearTimeout(this.bufferTimeout);
       this.bufferTimeout = null;
     }
+  
+  const now = performance.now ? performance.now() : Date.now();
+  this.recentKeyTimestamps.push(now);
+  if (this.recentKeyTimestamps.length > 32) this.recentKeyTimestamps.shift();
+  this.detectAndApplyBurstState();
 
-    if (ThaanaInput.IMMEDIATE_CHARS.has(char)) {
+    if (IMMEDIATE_CHARS.has(char)) {
       this.flushBuffer();
       this.insertCharacterDirect(this.getChar(char));
+      this.dispatchSyntheticInput();
       return;
     }
-    if (ThaanaInput.AKURU.has(char)) {
+    if (AKURU.has(char)) {
       this.handleAkuruInput(char);
       return;
     }
-    if (ThaanaInput.FILI.has(char)) {
+    if (FILI.has(char)) {
       this.handleFiliInput(char);
       return;
     }
-
     this.flushBuffer();
     this.insertCharacterDirect(this.getChar(char));
+    this.dispatchSyntheticInput();
   }
 
   private handleAkuruInput(char: string): void {
@@ -366,8 +226,8 @@ export class ThaanaInput {
     }
 
     // put in new akuru
-    this.AkuruBuffer = char;
-    this.lastAkuru = this.getChar(char);
+  this.AkuruBuffer = char;
+  this.lastAkuru = this.getChar(char);
     this.expectingFili = true;
     this.isBufferInserted = false;
 
@@ -375,22 +235,29 @@ export class ThaanaInput {
     this.insertCharacterDirect(this.lastAkuru);
     this.isBufferInserted = true;
 
+  // emit start event
+  if (this.shouldEmit()) this.emitter?.emit("ime-buffer-start", { akuru: this.lastAkuru });
+
     // wait till 500ms to see if a fili comes and flush
     this.bufferTimeout = setTimeout(() => {
       this.clearBuffer();
+      this.dispatchSyntheticInput();
     }, 500);
+    this.dispatchSyntheticInput();
   }
 
   private handleFiliInput(char: string): void {
     if (this.expectingFili && this.AkuruBuffer && this.isBufferInserted) {
-      // akuru + fili by replacing the last character
       const filiChar = this.getChar(char);
-      this.replaceLastCharacter(this.lastAkuru + filiChar);
+      const syllable = this.lastAkuru + filiChar;
+      this.replaceLastCharacter(syllable);
+  if (this.shouldEmit()) this.emitter?.emit("ime-buffer-commit", { syllable });
       this.clearBuffer();
+      this.dispatchSyntheticInput();
     } else {
-      // standalone fili ? anycase in dhivehi
       this.flushBuffer();
       this.insertCharacterDirect(this.getChar(char));
+      this.dispatchSyntheticInput();
     }
   }
 
@@ -399,43 +266,39 @@ export class ThaanaInput {
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
-    const textNode = range.startContainer;
+    const container = range.startContainer;
 
-    if (textNode.nodeType !== Node.TEXT_NODE) {
-      const newTextNode = document.createTextNode(char);
-      range.insertNode(newTextNode);
-
+    if (container.nodeType !== Node.TEXT_NODE) {
+      const tn = document.createTextNode(char);
+      range.insertNode(tn);
       const newRange = document.createRange();
-      newRange.setStartAfter(newTextNode);
-      newRange.setEndAfter(newTextNode);
+      newRange.setStartAfter(tn);
+      newRange.setEndAfter(tn);
       selection.removeAllRanges();
       selection.addRange(newRange);
+      this.lastSelection = { node: tn, offset: tn.textContent?.length || 0 };
       return;
     }
 
+    const textNode = container as Text;
     const textContent = textNode.textContent || "";
     const offset = range.startOffset;
-
-    const beforeChar = textContent.substring(0, offset);
-    const afterChar = textContent.substring(offset);
-    const newText = beforeChar + char + afterChar;
-    const newCursorPosition = beforeChar.length + char.length;
-
-    //  DOM update with cursor positioning
+    const before = textContent.slice(0, offset);
+    const after = textContent.slice(offset);
+    const newText = before + char + after;
+    const newCursor = before.length + char.length;
     try {
       textNode.textContent = newText;
-
-      const newRange = document.createRange();
-      const safePosition = Math.min(newCursorPosition, newText.length);
-      newRange.setStart(textNode, safePosition);
-      newRange.setEnd(textNode, safePosition);
+      const nr = document.createRange();
+      nr.setStart(textNode, newCursor);
+      nr.setEnd(textNode, newCursor);
       selection.removeAllRanges();
-      selection.addRange(newRange);
-
-      this.lastSelection = { node: textNode, offset: newCursorPosition };
+      selection.addRange(nr);
+      this.lastSelection = { node: textNode, offset: newCursor };
       this.selectionChanged = false;
-    } catch (error) {
-      console.warn("ThaanaInput: Error inserting character:", error);
+      this.dispatchSyntheticInput();
+    } catch (e) {
+      console.warn("ThaanaInput: Error inserting character", e);
     }
   }
 
@@ -487,11 +350,12 @@ export class ThaanaInput {
     this.lastAkuru = "";
     this.expectingFili = false;
     this.isBufferInserted = false;
-
     if (this.bufferTimeout) {
       clearTimeout(this.bufferTimeout);
       this.bufferTimeout = null;
     }
+  if (this.shouldEmit()) this.emitter?.emit("ime-buffer-flush", {});
+  this.dispatchSyntheticInput();
   }
 
   // More event handlers..
@@ -508,37 +372,41 @@ export class ThaanaInput {
     }
   };
 
-  private clickEvent = (event: MouseEvent): void => {
+  private clickEvent = (_e: MouseEvent): void => {
     if (!this.config.enabled) return;
     this.flushBuffer();
   };
 
-  private blurEvent = (event: FocusEvent): void => {
+  private blurEvent = (_e: FocusEvent): void => {
     if (!this.config.enabled) return;
     this.flushBuffer();
   };
 
-  private inputEvent = (event: Event): void => {
-    // This should be empty --> we handle everything in beforeinput
+  private inputEvent = (_e: Event): void => {
+    // Intentionally empty; logic handled in beforeinput
   };
 
   // utils
   private getChar(char: string): string {
-    if (this.config.keyMap) {
-      return this.config.keyMap[char] || char;
+    // Inline hot path (avoid function indirection & extra lookups)
+    const km = this.config.keyMap;
+    if (km) {
+      const mapped = km[char];
+      return mapped !== undefined ? mapped : char;
     }
-    return ThaanaInput.CHAR_MAP.get(char) || char;
+    const al = this.activeLayout;
+    const mapped = al[char];
+    return mapped !== undefined ? mapped : char;
   }
 
-  private throttle(func: Function, wait: number) {
-    let timeout: number | null = null;
-    return (...args: any[]) => {
-      if (timeout === null) {
-        timeout = setTimeout(() => {
-          func.apply(this, args);
-          timeout = null;
-        }, wait);
-      }
+  private throttle<T extends unknown[]>(func: (...args: T) => void, wait: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: T) => {
+      if (timeout !== null) return;
+      timeout = setTimeout(() => {
+        func.apply(this, args);
+        timeout = null;
+      }, wait);
     };
   }
 
@@ -547,14 +415,11 @@ export class ThaanaInput {
     this.ensureCleanDOMState();
   }
 
-  // Old problematic paste handler (now unused)
-  // private handlePastedContent(): void {
 
-  // }
 
   private shouldConvertText(text: string): boolean {
     // Don't convert if text contains markdown syntax
-    if (/[#*`>\-\[\](){}]/.test(text)) {
+  if (/[#*`>\-\[\](){}]/.test(text)) { // eslint-disable-line no-useless-escape
       return false;
     }
 
@@ -599,9 +464,9 @@ export class ThaanaInput {
       const char = text[i];
 
       // Handle akuru + fili combinations
-      if (ThaanaInput.AKURU.has(char) && i + 1 < text.length) {
+      if (AKURU.has(char) && i + 1 < text.length) {
         const nextChar = text[i + 1];
-        if (ThaanaInput.FILI.has(nextChar)) {
+        if (FILI.has(nextChar)) {
           result += this.getChar(char) + this.getChar(nextChar);
           i += 2;
           continue;
@@ -662,6 +527,46 @@ export class ThaanaInput {
 
   public updateKeyMap(newKeyMap: Record<string, string>): void {
     this.config.keyMap = newKeyMap;
+    this.activeLayout = newKeyMap;
+    this.layoutName = "custom";
+  }
+
+  // Toggle emission of ime-buffer-* events (runtime)
+  public setEmitBufferEvents(enabled: boolean): void {
+    this.emitBufferEvents = enabled;
+  }
+
+  private detectAndApplyBurstState(): void {
+    if (this.recentKeyTimestamps.length < 8) return; // need enough samples
+    const span = this.recentKeyTimestamps[this.recentKeyTimestamps.length - 1] - this.recentKeyTimestamps[0];
+    // If >= 8 key events within 40ms * (#events/8) roughly -> very high frequency
+    if (!this.burstSuppressed && span < 25 * (this.recentKeyTimestamps.length / 8)) {
+      // Auto disable emissions (hot path reduction)
+      this.burstSuppressed = true;
+    } else if (this.burstSuppressed) {
+      // Re-enable once span widens (user slows)
+      if (span > 120) this.burstSuppressed = false;
+    }
+  }
+
+  private shouldEmit(): boolean {
+    return this.emitBufferEvents && !this.burstSuppressed;
+  }
+
+  public setLayout(layout: LayoutName | Record<string, string>): void {
+    if (typeof layout === "string") {
+      const map = LAYOUTS[layout];
+      if (!map) return;
+      this.activeLayout = map;
+      this.layoutName = layout;
+      return;
+    }
+    this.activeLayout = layout;
+    this.layoutName = "custom";
+  }
+
+  public getLayout(): { name: string; map: Record<string, string> } {
+    return { name: this.layoutName, map: this.activeLayout };
   }
 
   public getConfig(): ThaanaKeyboardLayout {
@@ -682,5 +587,11 @@ export class ThaanaInput {
 
     this.lastSelection = null;
     this.clearBuffer();
+  }
+
+  private dispatchSyntheticInput(): void {
+    if (!this.hostEditorEl) return;
+    const evt = new Event('input', { bubbles: true });
+    this.hostEditorEl.dispatchEvent(evt);
   }
 }

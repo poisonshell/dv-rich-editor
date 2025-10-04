@@ -10,8 +10,8 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/react/*",
-    "src/types/*",
+    "src/react/**/*",
+    "src/types/**/*",
     "src/editor/ThemeManager.ts"
   ],
   "exclude": [
@@ -19,6 +19,7 @@
     "dist",
     "examples",
     "**/*.test.*",
-    "**/*.spec.*"
+    "**/*.spec.*",
+    "src/core/**/__tests__/**"
   ]
 } 

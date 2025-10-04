@@ -1,8 +1,9 @@
 
 export { DhivehiRichEditor } from './editor/DhivehiRichEditor';
 export { ThaanaInput } from './thaana/ThaanaInput';
-export { MarkdownFormatter } from './markdown/MarkdownFormatter';
+export { MarkdownFormatter } from './core/MarkdownFormatter';
 export { ThemeManager } from './editor/ThemeManager';
+export { getEditorStyleSheet } from './styles/editor-styles';
 
 export type {
   EditorConfig,

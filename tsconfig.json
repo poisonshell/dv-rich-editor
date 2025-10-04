@@ -11,7 +11,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
+  "moduleResolution": "bundler",
+  "ignoreDeprecations": "5.0",
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -23,12 +24,12 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "src/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "docs/examples",
-    "src/react/*"
+    "src/react/**/*"  // exclude all react subtree (built by tsconfig.react.json)
   ]
 } 

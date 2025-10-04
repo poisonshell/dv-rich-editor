@@ -5,30 +5,21 @@ export class MarkdownFormatter {
 
   constructor(config?: MarkdownOptions) {
     this.config = {
-      strict: false,
-      allowHtml: false,
-      lineBreak: 'soft',
-      headingStyle: 'atx',
       listStyle: 'dash',
-      ...config
+      ...config,
     };
   }
 
   public htmlToMarkdown(html: string): string {
-    // Create a temporary element to parse HTML
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-
     return this.processNode(tempDiv);
   }
 
   public markdownToHtml(markdown: string): string {
-
-
-
     const normalizedMarkdown = markdown.normalize('NFC');
     const lines = normalizedMarkdown.split('\n');
-    
+
     let html = '';
     let inCodeBlock = false;
     let inList = false;
@@ -39,17 +30,12 @@ export class MarkdownFormatter {
       const line = lines[i];
       const trimmedLine = line.trim();
 
-    
-
-
       if (trimmedLine.startsWith('```')) {
         if (inCodeBlock) {
-          // Close code block
           html += this.escapeHtml(codeBlockContent) + '</code></pre>';
           inCodeBlock = false;
           codeBlockContent = '';
         } else {
-          // Open code block
           const language = trimmedLine.slice(3).trim();
           html += `<pre><code${language ? ` class="language-${language}"` : ''}>`;
           inCodeBlock = true;
@@ -62,39 +48,28 @@ export class MarkdownFormatter {
         continue;
       }
 
-      // Close any open list if we encounter non-list content
       if (inList && !this.isListItem(trimmedLine) && trimmedLine !== '') {
         html += `</${listType}>`;
         inList = false;
         listType = '';
-      
       }
 
-      // Check for list items (with null safety)
       const listMatch = trimmedLine ? this.detectListItem(trimmedLine) : null;
       if (listMatch) {
         const { isOrdered, content } = listMatch;
         const currentListType = isOrdered ? 'ol' : 'ul';
-        
-        
-        
         if (!inList) {
           html += `<${currentListType}>`;
           inList = true;
           listType = currentListType;
-         
         } else if (listType !== currentListType) {
-          // Switch list type
           html += `</${listType}><${currentListType}>`;
           listType = currentListType;
-  
         }
-        
         html += `<li>${this.processInlineFormatting(content)}</li>`;
         continue;
       }
 
-      // Headings
       if (trimmedLine.startsWith('#')) {
         const level = this.getHeadingLevel(trimmedLine);
         const text = trimmedLine.slice(level).trim();
@@ -102,69 +77,48 @@ export class MarkdownFormatter {
         continue;
       }
 
-      // Blockquotes
       if (trimmedLine.startsWith('>')) {
         const content = trimmedLine.slice(1).trim();
         html += `<blockquote>${this.processInlineFormatting(content)}</blockquote>`;
         continue;
       }
 
-      // Horizontal rules
       if (trimmedLine === '---' || trimmedLine === '***' || trimmedLine === '___') {
         html += '<hr>';
         continue;
       }
 
-      // Regular paragraphs
       if (trimmedLine) {
         html += `<p>${this.processInlineFormatting(trimmedLine)}</p>`;
       } else {
         html += '<br>';
       }
     }
+
     if (inList) {
       html += `</${listType}>`;
-     
     }
-
 
     return html;
   }
 
-
   private detectListItem(line: string): { isOrdered: boolean; content: string } | null {
-    // More robust regex patterns
     const numberedPattern = /^(\s*)(\d+)\.\s+(.+)$/;
     const bulletPattern = /^(\s*)([-*+])\s+(.+)$/;
-
-    // Check for numbered lists first
     const numberedMatch = line.match(numberedPattern);
     if (numberedMatch) {
-     
-      return {
-        isOrdered: true,
-        content: numberedMatch[3].trim()
-      };
+      return { isOrdered: true, content: numberedMatch[3].trim() };
     }
-
-    // Check for bullet lists
     const bulletMatch = line.match(bulletPattern);
     if (bulletMatch) {
-     
-      return {
-        isOrdered: false,
-        content: bulletMatch[3].trim()
-      };
+      return { isOrdered: false, content: bulletMatch[3].trim() };
     }
-
     return null;
   }
 
-  
   private isListItem(line: string): boolean {
     return line ? this.detectListItem(line) !== null : false;
   }
-
 
   private getHeadingLevel(line: string): number {
     const match = line.match(/^#+/);
@@ -173,130 +127,92 @@ export class MarkdownFormatter {
 
   private processInlineFormatting(text: string): string {
     let result = text;
-
-
-    // Bold: **text** or __text__ (but not when inside other formatting)
     result = result.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
     result = result.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
-
-    // Italic: *text* or _text_ (but not when inside bold)
     result = result.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
     result = result.replace(/(?<!_)_([^_]+?)_(?!_)/g, '<em>$1</em>');
-
-    // Strikethrough: ~~text~~
     result = result.replace(/~~([^~]+?)~~/g, '<del>$1</del>');
-
-    // Inline code: `code` (process before links to avoid conflicts)
     result = result.replace(/`([^`]+?)`/g, '<code>$1</code>');
-
-    // Images: ![alt](url) (process before links)
     result = result.replace(/!\[([^\]]*?)\]\(([^)]+?)\)/g, '<img src="$2" alt="$1">');
-
-    // Links: [text](url)
     result = result.replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, '<a href="$2">$1</a>');
-
     return result;
   }
 
   private processNode(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent || '';
-    }
-
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return '';
-    }
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
 
     const element = node as Element;
     const tagName = element.tagName.toLowerCase();
     let result = '';
 
     switch (tagName) {
-      case 'h1':
-      case 'h2':
-      case 'h3':
-      case 'h4':
-      case 'h5':
-      case 'h6':
+      case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6': {
         const level = parseInt(tagName.slice(1));
         const hashes = '#'.repeat(level);
         result = `${hashes} ${this.getTextContent(element)}\n\n`;
         break;
-
+      }
       case 'p':
         result = `${this.processChildNodes(element)}\n\n`;
         break;
-
-      case 'strong':
-      case 'b':
+      case 'strong': case 'b':
         result = `**${this.processChildNodes(element)}**`;
         break;
-
-      case 'em':
-      case 'i':
+      case 'em': case 'i':
         result = `*${this.processChildNodes(element)}*`;
         break;
-
       case 'code':
         result = `\`${this.getTextContent(element)}\``;
         break;
-
-      case 'del':
-      case 's':
+      case 'del': case 's':
         result = `~~${this.processChildNodes(element)}~~`;
         break;
-
       case 'blockquote':
         result = `> ${this.processChildNodes(element)}\n\n`;
         break;
-
       case 'ul':
         result = this.processListItems(element, false);
         break;
-
       case 'ol':
         result = this.processListItems(element, true);
         break;
-
       case 'li':
-        // Handle individual list items
         result = this.processChildNodes(element);
         break;
-
-      case 'a':
+      case 'a': {
         const href = element.getAttribute('href') || '';
         result = `[${this.getTextContent(element)}](${href})`;
         break;
-
-      case 'img':
+      }
+      case 'img': {
         const src = element.getAttribute('src') || '';
         const alt = element.getAttribute('alt') || '';
         result = `![${alt}](${src})`;
         break;
-
+      }
       case 'br':
         result = '\n';
         break;
-
       case 'hr':
         result = '\n---\n';
         break;
-
-      case 'pre':
+      case 'pre': {
         const codeElement = element.querySelector('code');
         if (codeElement) {
           const language = codeElement.className.match(/language-(\w+)/)?.[1] || '';
-          result = `\n\`\`\`${language}\n${this.getTextContent(codeElement)}\n\`\`\`\n`;
+          const fence = '```';
+          result = `\n${fence}${language}\n${this.getTextContent(codeElement)}\n${fence}\n`;
         } else {
-          result = `\n\`\`\`\n${this.getTextContent(element)}\n\`\`\`\n`;
+          const fence = '```';
+            result = `\n${fence}\n${this.getTextContent(element)}\n${fence}\n`;
         }
         break;
-
+      }
       default:
         result = this.processChildNodes(element);
         break;
     }
-
     return result;
   }
 
@@ -311,13 +227,11 @@ export class MarkdownFormatter {
   private processListItems(listElement: Element, ordered: boolean): string {
     let result = '';
     const items = Array.from(listElement.querySelectorAll(':scope > li'));
-    
     items.forEach((item, index) => {
       const marker = ordered ? `${index + 1}.` : this.getListMarker();
       const content = this.processChildNodes(item);
       result += `${marker} ${content}\n`;
     });
-    
     return result + '\n';
   }
 
@@ -347,6 +261,4 @@ export class MarkdownFormatter {
   public getConfig(): MarkdownOptions {
     return this.config;
   }
-
-
 }

@@ -34,7 +34,7 @@ export const EDITOR_STYLES = {
 
   // Complete CSS styles for injection
   css: `
-    .dv-rich-editor {
+  .dv-rich-editor {
       direction: rtl;
       text-align: right;
       unicode-bidi: plaintext;
@@ -51,9 +51,9 @@ export const EDITOR_STYLES = {
       overflow-wrap: break-word;
       white-space: pre-wrap;
 
-      font-family: 'Noto Sans Dhivehi', 'MV Elaaf Normal', 'Faruma', Arial, sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
+  font-family: var(--dv-font-family, 'Noto Sans Dhivehi', 'MV Elaaf Normal', 'Faruma', Arial, sans-serif);
+  font-size: var(--dv-font-size, 16px);
+  line-height: var(--dv-line-height, 1.6);
       font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
@@ -63,11 +63,11 @@ export const EDITOR_STYLES = {
       letter-spacing: 0.01em;
       
       min-height: 100px;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: white;
-      color: #333;
+  padding: var(--dv-padding, 12px);
+  border: var(--dv-border-width, 1px) solid var(--dv-border, #ccc);
+  border-radius: var(--dv-radius, 4px);
+  background: var(--dv-bg, white);
+  color: var(--dv-text, #333);
       
       outline: none;
       cursor: text;
@@ -83,14 +83,14 @@ export const EDITOR_STYLES = {
     }
 
     .dv-rich-editor:focus {
-      border-color: #007bff;
-      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+      border-color: var(--dv-border-focus, #007bff);
+      box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
       outline: none;
     }
 
     .dv-rich-editor[data-placeholder]:empty::before {
       content: attr(data-placeholder);
-      color: #6c757d;
+      color: var(--dv-placeholder, #6c757d);
       pointer-events: none;
       font-style: italic;
       opacity: 0.7;
@@ -112,13 +112,13 @@ export const EDITOR_STYLES = {
     .dv-rich-editor h1 { 
       font-size: 2em !important; 
       font-weight: bold !important;
-      border-bottom: 2px solid #e5e7eb;
+      border-bottom: 2px solid var(--dv-heading-border-1, #e5e7eb);
       padding-bottom: 0.3em;
     }
     .dv-rich-editor h2 { 
       font-size: 1.75em !important; 
       font-weight: bold !important;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--dv-heading-border-2, #e5e7eb);
       padding-bottom: 0.2em;
     }
     .dv-rich-editor h3 { 
@@ -160,19 +160,19 @@ export const EDITOR_STYLES = {
     .dv-rich-editor blockquote {
       margin: 1em 0 !important;
       padding: 0.5em 1em !important;
-      border-right: 4px solid #3b82f6 !important;
+      border-right: 4px solid var(--dv-blockquote-border, #3b82f6) !important;
       border-left: none !important;
-      background-color: #f8fafc !important;
+      background-color: var(--dv-blockquote-bg, #f8fafc) !important;
       font-style: italic !important;
-      color: #4b5563 !important;
+      color: var(--dv-blockquote-text, #4b5563) !important;
       border-radius: 0 4px 4px 0 !important;
       display: block !important;
     }
 
     /* CODE STYLES - Crucial for visual formatting */
     .dv-rich-editor code {
-      background-color: #f3f4f6 !important;
-      color: #dc2626 !important;
+      background-color: var(--dv-code-bg, #f3f4f6) !important;
+      color: var(--dv-code-color, #dc2626) !important;
       border-radius: 3px !important;
       padding: 0.2em 0.4em !important;
       font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, 'Courier New', monospace !important;
@@ -185,9 +185,9 @@ export const EDITOR_STYLES = {
 
     /* PRE/CODE BLOCK STYLES - Crucial for visual formatting */
     .dv-rich-editor pre {
-      background-color: #1f2937 !important;
-      color: #f9fafb !important;
-      border: 1px solid #374151 !important;
+      background-color: var(--dv-pre-bg, #1f2937) !important;
+      color: var(--dv-pre-text, #f9fafb) !important;
+      border: 1px solid var(--dv-pre-border, #374151) !important;
       border-radius: 6px !important;
       padding: 1em !important;
       overflow-x: auto !important;
@@ -207,7 +207,7 @@ export const EDITOR_STYLES = {
     }
 
     .dv-rich-editor a {
-      color: #007bff;
+      color: var(--dv-link, #007bff);
       text-decoration: none;
     }
 
@@ -246,12 +246,12 @@ export const EDITOR_STYLES = {
 
     /* SELECTION STYLES */
     .dv-rich-editor::selection {
-      background: rgba(0, 123, 255, 0.25);
+      background: var(--dv-selection, rgba(0, 123, 255, 0.25));
       color: inherit;
     }
 
     .dv-rich-editor ::-moz-selection {
-      background: rgba(0, 123, 255, 0.25);
+      background: var(--dv-selection, rgba(0, 123, 255, 0.25));
       color: inherit;
     }
 
@@ -267,9 +267,9 @@ export const EDITOR_STYLES = {
     /* DARK MODE SUPPORT */
     @media (prefers-color-scheme: dark) {
       .dv-rich-editor {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        border-color: #444;
+        background-color: var(--dv-bg, #1e1e1e);
+        color: var(--dv-text, #e0e0e0);
+        border-color: var(--dv-border, #444);
       }
       
       .dv-rich-editor:focus {
@@ -282,17 +282,17 @@ export const EDITOR_STYLES = {
       }
       
       .dv-rich-editor blockquote {
-        background-color: #2a2a2a !important;
-        border-right-color: #555 !important;
+        background-color: var(--dv-blockquote-bg-dark, #2a2a2a) !important;
+        border-right-color: var(--dv-blockquote-border-dark, #555) !important;
       }
       
       .dv-rich-editor code {
-        background-color: #2a2a2a !important;
+        background-color: var(--dv-code-bg-dark, #2a2a2a) !important;
       }
       
       .dv-rich-editor pre {
-        background-color: #2a2a2a !important;
-        border-color: #444 !important;
+        background-color: var(--dv-pre-bg-dark, #2a2a2a) !important;
+        border-color: var(--dv-pre-border-dark, #444) !important;
       }
     }
 
@@ -303,8 +303,8 @@ export const EDITOR_STYLES = {
     margin: 1em 0 !important;
     padding-right: 2em !important;
     padding-left: 0 !important;
-    background: rgba(59, 130, 246, 0.05) !important;
-    border: 1px dashed rgba(59, 130, 246, 0.2) !important;
+    background: var(--dv-ol-bg, rgba(59, 130, 246, 0.05)) !important;
+    border: 1px dashed var(--dv-ol-border, rgba(59, 130, 246, 0.2)) !important;
     border-radius: 8px !important;
   }
 
@@ -314,8 +314,8 @@ export const EDITOR_STYLES = {
     list-style-position: outside !important;
     margin: 0.5em 0 !important;
     padding: 0.2em 0 !important;
-    background: rgba(16, 185, 129, 0.05) !important;
-    border-left: 3px solid rgba(16, 185, 129, 0.3) !important;
+    background: var(--dv-ol-li-bg, rgba(16, 185, 129, 0.05)) !important;
+    border-left: 3px solid var(--dv-ol-li-border, rgba(16, 185, 129, 0.3)) !important;
     border-radius: 0 4px 4px 0 !important;
   }
 
@@ -334,13 +334,13 @@ export const EDITOR_STYLES = {
 
   /* Ensure markers are visible and styled */
   .dv-rich-editor ol li::marker {
-    color: #1e40af !important;
+    color: var(--dv-ol-marker, #1e40af) !important;
     font-weight: bold !important;
     font-size: 1.1em !important;
   }
 
   .dv-rich-editor ul li::marker {
-    color: #059669 !important;
+    color: var(--dv-ul-marker, #059669) !important;
     font-size: 1.2em !important;
   }
 
@@ -355,14 +355,13 @@ export const EDITOR_STYLES = {
   `,
 };
 
+export const getEditorStyleSheet = (): string => EDITOR_STYLES.css;
+
 export const injectEditorStyles = (): void => {
-  if (document.querySelector("#dv-rich-editor-styles")) {
-    return;
-  }
-
-  const styleElement = document.createElement("style");
-  styleElement.id = "dv-rich-editor-styles";
+  if (typeof document === 'undefined') return; // SSR guard
+  if (document.querySelector('#dv-rich-editor-styles')) return;
+  const styleElement = document.createElement('style');
+  styleElement.id = 'dv-rich-editor-styles';
   styleElement.textContent = EDITOR_STYLES.css;
-
   document.head.appendChild(styleElement);
 };

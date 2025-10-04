@@ -18,8 +18,7 @@ import type {
   ThemeName
 } from '../types';
 
-export { DVRichEditor } from './DhivehiRichEditorReact';
-export { useDhivehiEditor } from './hooks/useDhivehiEditor';
+export { DVRichEditor, useDhivehiEditor } from './DhivehiRichEditorReact';
 export { ThemeManager } from '../editor/ThemeManager';
 
 

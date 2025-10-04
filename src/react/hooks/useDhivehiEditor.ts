@@ -1,8 +1,10 @@
 import { useRef, useCallback } from 'react';
 import type { DhivehiRichEditorRef } from '../DhivehiRichEditorReact';
-import type { ImageData, FormatType } from '../../types';
+import type { FormatType } from '../../types';
 
-export function useDhivehiEditor() {
+// Deprecated: Old standalone hook kept temporarily for backward compatibility.
+// Prefer using the context-based hook from DhivehiRichEditorReact (single source of truth)
+export function useInternalDhivehiEditorDeprecated() {
   const editorRef = useRef<DhivehiRichEditorRef>(null);
 
   const getMarkdown = useCallback(() => {
@@ -17,21 +19,12 @@ export function useDhivehiEditor() {
     editorRef.current?.insertText(text);
   }, []);
 
-  const insertImage = useCallback((imageData: ImageData) => {
-    editorRef.current?.insertImage(imageData);
-  }, []);
-
   const openImageDialog = useCallback(async () => {
-    await editorRef.current?.openImageDialog();
+    editorRef.current?.insertImageFormat();
   }, []);
 
-  const applyFormat = useCallback((format: FormatType) => {
-    editorRef.current?.applyFormat(format);
-  }, []);
 
-  const removeFormat = useCallback((format: FormatType) => {
-    editorRef.current?.removeFormat(format);
-  }, []);
+  // removeFormat removed from API
 
   const isFormatActive = useCallback((format: FormatType) => {
     return editorRef.current?.isFormatActive(format) || false;
@@ -73,12 +66,9 @@ export function useDhivehiEditor() {
     insertText,
     appendContent,
     clear,
-    // Image methods
-    insertImage,
-    openImageDialog,
-    // Formatting methods
-    applyFormat,
-    removeFormat,
+  // Image dialog
+  openImageDialog,
+  // Formatting methods
     isFormatActive,
     // Clipboard methods
     copyToClipboard,
@@ -91,4 +81,4 @@ export function useDhivehiEditor() {
   };
 }
 
-export default useDhivehiEditor; 
+export default useInternalDhivehiEditorDeprecated; 

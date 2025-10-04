@@ -200,7 +200,11 @@ export class ThemeManager {
       activeTheme = this.THEMES.default;
     }
 
-    // Apply theme to editor element
+  // Apply CSS variables first
+  this.applyCSSVariables(editor, activeTheme);
+  if (container !== editor) this.applyCSSVariables(container, activeTheme);
+
+  // Apply theme to editor element
     this.applyThemeToElement(editor, activeTheme, "editor");
 
     // Apply theme to container if different
@@ -214,6 +218,35 @@ export class ThemeManager {
     // Apply custom styling
     if (customStyling) {
       this.applyCustomStyling(editor, container, customStyling);
+    }
+  }
+
+  private static applyCSSVariables(target: HTMLElement, theme: EditorTheme): void {
+    const { colors, typography, spacing } = theme;
+    const set = (k: string, v: string | undefined) => { if (v) target.style.setProperty(k, v); };
+    if (colors) {
+      set('--dv-bg', colors.background);
+      set('--dv-text', colors.text);
+      set('--dv-border', colors.border);
+      set('--dv-border-focus', colors.borderFocus);
+      set('--dv-placeholder', colors.placeholder);
+      set('--dv-selection', colors.selection);
+      set('--dv-link', colors.link);
+      set('--dv-code-bg', colors.codeBackground);
+      set('--dv-blockquote-bg', colors.blockquoteBackground);
+      set('--dv-blockquote-border', colors.blockquoteBorder);
+    }
+    if (typography) {
+      set('--dv-font-family', typography.fontFamily);
+      set('--dv-font-size', typography.fontSize);
+      set('--dv-line-height', typography.lineHeight);
+      set('--dv-font-weight', typography.fontWeight);
+    }
+    if (spacing) {
+      set('--dv-padding', spacing.padding);
+      set('--dv-margin', spacing.margin);
+      set('--dv-radius', spacing.borderRadius);
+      set('--dv-border-width', spacing.borderWidth);
     }
   }
 

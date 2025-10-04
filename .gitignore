@@ -8,7 +8,11 @@ yarn-error.log*
 dist/
 *.tsbuildinfo
 
-
+# custom tests files
+examples/
+docs/
+tests/
+bench/
 
 # Environment variables
 .env
