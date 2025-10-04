@@ -2,38 +2,75 @@ export interface RTLSupportHost {
   root: HTMLElement;
 }
 
+let currentRoot: HTMLElement | null = null;
+let pointerDown = false;
+
 export function installRTLSupport(host: RTLSupportHost): void {
   const el = host.root;
+  currentRoot = el;
   el.addEventListener('mousedown', handleMouseDown);
+  el.addEventListener('touchstart', handleMouseDown, { passive: true });
   el.addEventListener('selectstart', handleSelectStart, true);
-  el.addEventListener('selectionchange', handleSelectionChange);
+  // Use document-level selectionchange so we catch selection changes reliably
+  document.addEventListener('selectionchange', handleSelectionChange);
   el.addEventListener('dblclick', handleDoubleClick);
+  document.addEventListener('mouseup', handlePointerUp);
+  document.addEventListener('touchend', handlePointerUp);
 }
 
 export function uninstallRTLSupport(host: RTLSupportHost): void {
   const el = host.root;
+  currentRoot = null;
   el.removeEventListener('mousedown', handleMouseDown);
+  el.removeEventListener('touchstart', handleMouseDown as EventListener);
   el.removeEventListener('selectstart', handleSelectStart, true);
-  el.removeEventListener('selectionchange', handleSelectionChange);
+  document.removeEventListener('selectionchange', handleSelectionChange);
   el.removeEventListener('dblclick', handleDoubleClick);
+  document.removeEventListener('mouseup', handlePointerUp);
+  document.removeEventListener('touchend', handlePointerUp);
 }
 
-function handleMouseDown(e: MouseEvent) {
-  const target = e.currentTarget as HTMLElement;
-  if (e.target === target || (e.target as Element)?.closest('.dv-rich-editor')) target.style.cursor = 'text';
+function handleMouseDown(e: MouseEvent | TouchEvent) {
+  pointerDown = true;
+  const target = (e.currentTarget || e.target) as HTMLElement;
+  if ((e as any).target === target || ((e as any).target as Element)?.closest?.('.dv-rich-editor')) {
+    try { target.style.cursor = 'text'; } catch {}
+  }
 }
 
 function handleSelectStart(e: Event) { e.stopPropagation(); }
 
 function handleSelectionChange() {
+  // Don't interfere while the user is actively dragging/selecting.
+  if (pointerDown) return;
   const sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
-  setTimeout(()=>{ if (sel.rangeCount>0){ const r = sel.getRangeAt(0); normalizeSelection(r);} },0);
+  setTimeout(()=>{ if (sel.rangeCount>0){ const r = sel.getRangeAt(0); 
+      // Only normalize if the selection is within the current editor root
+      if (currentRoot && (currentRoot.contains(r.startContainer as Node) || currentRoot.contains(r.endContainer as Node))) {
+        normalizeSelection(r);
+      }
+    }
+  },0);
 }
 
 function handleDoubleClick(e: MouseEvent) {
   e.preventDefault(); const sel = window.getSelection(); if (!sel) return;
   const range = document.createRange(); const tn = getTextNodeAtPoint(e.clientX, e.clientY);
   if (tn && tn.textContent) { const clickOffset = getOffsetInTextNode(tn, e.clientX, e.clientY); const wb = findRTLWordBounds(tn.textContent, clickOffset); range.setStart(tn, wb.start); range.setEnd(tn, wb.end); sel.removeAllRanges(); sel.addRange(range);} }
+
+function handlePointerUp() {
+  // Pointer up ends dragging — allow a tick then normalize if needed
+  if (!pointerDown) return;
+  pointerDown = false;
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const r = sel.getRangeAt(0);
+    if (currentRoot && (currentRoot.contains(r.startContainer as Node) || currentRoot.contains(r.endContainer as Node))) {
+      normalizeSelection(r);
+    }
+  }, 0);
+}
 
 function normalizeSelection(range: Range){ if (range.collapsed) return; const sel = window.getSelection(); if (!sel) return; sel.removeAllRanges(); sel.addRange(range); }
 

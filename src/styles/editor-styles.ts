@@ -22,7 +22,9 @@ export const EDITOR_STYLES = {
     textRendering: "optimizeLegibility",
     fontFeatureSettings: '"liga" 1, "kern" 1, "calt" 1',
     userSelect: "text",
-    unicodeBidi: "plaintext",
+  // Use isolate-override to improve caret/selection behaviour in RTL (Thaana) content
+  // When Thaana input is enabled this avoids selection/caret issues in contenteditable.
+  unicodeBidi: "isolate-override",
     WebkitFontSmoothing: "antialiased",
     MozOsxFontSmoothing: "grayscale",
     fontVariantLigatures: "common-ligatures contextual",
@@ -35,9 +37,10 @@ export const EDITOR_STYLES = {
   // Complete CSS styles for injection
   css: `
   .dv-rich-editor {
-      direction: rtl;
-      text-align: right;
-      unicode-bidi: plaintext;
+  direction: rtl;
+  text-align: right;
+  /* Prefer isolate-override for better mixed-direction caret handling in Thaana (RTL) */
+  unicode-bidi: isolate-override;
       
       user-select: text;
       -webkit-user-select: text;

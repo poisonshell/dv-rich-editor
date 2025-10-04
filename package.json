@@ -20,14 +20,15 @@
     "./react": {
       "import": "./dist/react/index.esm.js",
       "require": "./dist/react/index.js",
-      "types": "./dist/react/index.d.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
-    "build": "npm run clean && npm run compile",
-    "compile": "npm run compile:core && npm run compile:react",
-    "compile:core": "tsc && rollup -c",
-    "compile:react": "tsc -p tsconfig.react.json && rollup -c rollup.config.react.js && mv dist/react/react/* dist/react/ 2>/dev/null || true && rm -rf dist/react/react 2>/dev/null || true",
+  "build": "npm run clean && npm run compile",
+  "check:react-entry": "npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit",
+  "compile": "npm run compile:core && npm run compile:react",
+  "compile:core": "tsc -b tsconfig.core.json && rollup -c",
+  "compile:react": "rollup -c rollup.config.react.js",
     "bundle": "rollup -c && rollup -c rollup.config.react.js",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",

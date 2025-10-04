@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.react.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "dv-rich-editor": ["dist/index.d.ts"],
+      "dv-rich-editor/*": ["dist/*"]
+    },
+    // Ensure the React build does not emit declarations itself; core already emitted them
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false
+  },
+  "references": []
+}

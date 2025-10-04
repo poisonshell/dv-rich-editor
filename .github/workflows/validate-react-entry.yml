@@ -1,0 +1,24 @@
+name: Validate react entry
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Run react entry typecheck
+        working-directory: ./
+        run: npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit

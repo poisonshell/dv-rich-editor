@@ -185,7 +185,8 @@ export class DhivehiRichEditor implements EditorInstance {
 
     this.editor.setAttribute("dir", "rtl");
     this.editor.style.textAlign = "right";
-    this.editor.style.unicodeBidi = "isolate";
+  // Default to isolate-override for better caret handling in RTL input (Thaana)
+  this.editor.style.unicodeBidi = this.thaanaEnabled ? "isolate-override" : "plaintext";
     Object.assign(this.editor.style, EDITOR_STYLES.base);
     this.injectEditorStyles();
     ThemeManager.applyTheme(

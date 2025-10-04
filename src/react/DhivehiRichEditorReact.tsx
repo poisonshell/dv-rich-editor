@@ -8,6 +8,7 @@ import React, {
   useState, 
   useCallback 
 } from 'react';
+// Use relative imports so the editor/IDE resolves types from source during development
 import { DhivehiRichEditor } from '../editor/DhivehiRichEditor';
 import type { EditorConfig, FormatType, EditorTheme, EditorStyling, ThemeName } from '../types';
 

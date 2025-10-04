@@ -1,6 +1,6 @@
 # DV Rich Editor
 
-> A lightweight Dhivehi rich text editor featuring built-in Thaana keyboard support, dynamic theming, and clean markdown output. This is an effort to better handle markdown images and custom tags correctly in RTL inputs. It also gracefully manages image spacing and backspace behavior during Dhivehi typing, preventing unintended issues such as breaking URLs and other markdown tags.
+> A Dhivehi rich text editor featuring built-in Thaana keyboard support, dynamic theming, and clean markdown output. This is an effort to better handle markdown images and custom tags correctly in RTL inputs. It also gracefully manages image spacing and backspace behavior during Dhivehi typing, preventing unintended issues such as breaking URLs and other markdown tags.
 
 Thaana keyboard IME (experimental): combines direct character mapping with a short-lived akuru–fili buffer for natural composition. Design may evolve; feedback welcome.
 
@@ -35,7 +35,7 @@ import { DhivehiRichEditor } from 'dv-rich-editor';
 
 const editor = new DhivehiRichEditor({
   container: '#editor-container',
-  placeholder: 'ލިޔުއްވާށެވެ...',
+  placeholder: 'test',
   onChange: (markdown) => console.log(markdown)
 });
 ```
@@ -57,7 +57,7 @@ const editor = new DhivehiRichEditor({
         
     const editor = new DhivehiRichEditor({
       container: '#editor-container',
-      placeholder: 'ލިޔުއްވާށެވެ...',
+      placeholder: 'test',
       onChange: (markdown) => console.log(markdown)
     });
   </script>
@@ -238,10 +238,10 @@ Example table serialization:
 →
 
 ```md
-| Lang | Hello |
+| Word | Hello |
 | --- | --- |
-| EN | Hello |
-| DV | ހަދިޔަ |
+| 1 | Hello |
+| 2 | Hi    |
 ```
 
 Note: alignment / colspan not yet supported.

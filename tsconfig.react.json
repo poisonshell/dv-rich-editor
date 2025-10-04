@@ -9,10 +9,16 @@
     "emitDeclarationOnly": false,
     "skipLibCheck": true
   },
+  "baseUrl": "./",
+  "paths": {
+    "dv-rich-editor": ["dist/index.d.ts"],
+    "dv-rich-editor/*": ["dist/*"]
+  },
   "include": [
-    "src/react/**/*",
-    "src/types/**/*",
-    "src/editor/ThemeManager.ts"
+    "src/react/**/*"
+  ],
+  "references": [
+    { "path": "./tsconfig.core.json" }
   ],
   "exclude": [
     "node_modules",

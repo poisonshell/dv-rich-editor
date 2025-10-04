@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "paths": {
+      "dv-rich-editor": ["./dist/index.d.ts"],
+      "dv-rich-editor/*": ["./dist/*"]
+    }
+  },
+  "include": [
+    "index.ts"
+  ]
+}

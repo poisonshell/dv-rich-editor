@@ -21,7 +21,12 @@
     "noEmitOnError": true,
     "removeComments": false,
     "sourceMap": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": "./",
+    "paths": {
+      "dv-rich-editor/*": ["src/*"],
+      "dv-rich-editor": ["src/index.ts"]
+    }
   },
   "include": [
     "src/**/*"

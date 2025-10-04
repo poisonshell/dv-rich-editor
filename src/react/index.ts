@@ -4,6 +4,7 @@ import type {
   DhivehiRichEditorRef, 
 } from './DhivehiRichEditorReact';
 
+
 import type {
   EditorConfig,
   EditorInstance,
