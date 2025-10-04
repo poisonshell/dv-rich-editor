@@ -1,9 +1,9 @@
 
+
 import type { 
   DhivehiRichEditorProps, 
   DhivehiRichEditorRef, 
 } from './DhivehiRichEditorReact';
-
 
 import type {
   EditorConfig,
@@ -20,8 +20,8 @@ import type {
 } from '../types';
 
 export { DVRichEditor, useDhivehiEditor } from './DhivehiRichEditorReact';
+// Use relative re-export for development; rollup build replaces this with package-root import
 export { ThemeManager } from '../editor/ThemeManager';
-
 
 export { DVRichEditor as default } from './DhivehiRichEditorReact';
 
@@ -40,7 +40,6 @@ export type {
   EditorStyling,
   ThemeName
 };
-
 
 export type EditorRef = DhivehiRichEditorRef;
 export type EditorProps = DhivehiRichEditorProps;

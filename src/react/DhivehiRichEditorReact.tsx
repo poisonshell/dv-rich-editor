@@ -8,7 +8,8 @@ import React, {
   useState, 
   useCallback 
 } from 'react';
-// Use relative imports so the editor/IDE resolves types from source during development
+// Import the core editor via package-root deep import so built React bundle references
+// a resolvable package export instead of a relative ../editor/... path.
 import { DhivehiRichEditor } from '../editor/DhivehiRichEditor';
 import type { EditorConfig, FormatType, EditorTheme, EditorStyling, ThemeName } from '../types';
 

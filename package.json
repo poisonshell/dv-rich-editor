@@ -1,8 +1,8 @@
 {
   "name": "dv-rich-editor",
-  "version": "0.7.1",
+  "version": "0.7.3",
   "type": "module",
-  "description": "A lightweight Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
+  "description": "A Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -21,15 +21,24 @@
       "import": "./dist/react/index.esm.js",
       "require": "./dist/react/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./editor/DhivehiRichEditor": {
+      "import": "./dist/editor/DhivehiRichEditor.js",
+      "require": "./dist/editor/DhivehiRichEditor.js",
+      "types": "./dist/editor/DhivehiRichEditor.d.ts"
+    },
+    "./editor/ThemeManager": {
+      "import": "./dist/editor/ThemeManager.js",
+      "require": "./dist/editor/ThemeManager.js",
+      "types": "./dist/editor/ThemeManager.d.ts"
     }
   },
   "scripts": {
   "build": "npm run clean && npm run compile",
-  "check:react-entry": "npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit",
-  "compile": "npm run compile:core && npm run compile:react",
-  "compile:core": "tsc -b tsconfig.core.json && rollup -c",
-  "compile:react": "rollup -c rollup.config.react.js",
-    "bundle": "rollup -c && rollup -c rollup.config.react.js",
+    "check:react-entry": "npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit",
+  "compile": "npm run bundle && npm run compile:types",
+  "bundle": "rollup -c && rollup -c rollup.config.react.js",
+  "compile:types": "npx -y tsc -b tsconfig.core.json --force",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "dev:react": "tsc -p tsconfig.react.json --watch",
@@ -45,6 +54,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@rollup/plugin-alias": "^5.1.1",
     "@rollup/plugin-typescript": "^11.1.5",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^16.0.0",

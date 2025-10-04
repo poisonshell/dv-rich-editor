@@ -3,8 +3,9 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "dv-rich-editor": ["dist/index.d.ts"],
-      "dv-rich-editor/*": ["dist/*"]
+      // During local build, allow resolving package-root deep imports to source files
+      "dv-rich-editor/*": ["src/*"],
+      "dv-rich-editor": ["dist/index.d.ts"]
     },
     // Ensure the React build does not emit declarations itself; core already emitted them
     "declaration": false,

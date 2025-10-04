@@ -1,4 +1,5 @@
 import typescript from '@rollup/plugin-typescript';
+import alias from '@rollup/plugin-alias';
 import path from 'path';
 
 // Treat internal core/editor/etc modules as externals so they are not re-emitted under dist/react
@@ -29,6 +30,13 @@ export default [
       sourcemap: true
     },
     plugins: [
+      // Rewrite local ../editor imports to package-root deep imports so consumers can resolve them
+      alias({
+        entries: [
+          { find: '../editor/DhivehiRichEditor', replacement: 'dv-rich-editor/editor/DhivehiRichEditor' },
+          { find: '../editor/ThemeManager', replacement: 'dv-rich-editor/editor/ThemeManager' }
+        ]
+      }),
       typescript({
         tsconfig: './tsconfig.react.build.json',
         // Do not emit declarations from Rollup plugin; let `tsc` emit them during the build step
