@@ -8,8 +8,7 @@ yarn-error.log*
 dist/
 *.tsbuildinfo
 
-# Temporary / generated files
-# NOTE: examples/, docs/, tests/, bench/ are private in this repo and should be ignored.
+# None public
 examples/
 docs/
 tests/

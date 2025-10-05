@@ -18,12 +18,48 @@ export function createImagePlugin(opts: ImagePluginOptions): EditorPlugin {
     name: 'image-basic',
     init(ctx) {
       const { config } = opts;
+      // Helper sanitizers to ensure generated markdown is always valid
+      const sanitizeAlt = (raw: string | undefined | null): string => {
+        if (!raw) return '';
+        return raw
+          .replace(/\\/g, '\\\\')  // escape backslashes first
+          .replace(/]/g, '\\]')        // escape closing bracket inside alt text
+          .replace(/\n|\r/g, ' ')      // collapse newlines
+          .trim();
+      };
+      const sanitizeTitle = (raw: string | undefined | null): string | undefined => {
+        if (!raw) return undefined;
+        const cleaned = raw
+          .replace(/\\/g, '\\\\')  // escape backslashes
+          .replace(/"/g, '\\"')      // escape quotes
+          .replace(/\n|\r/g, ' ')      // remove line breaks
+          .trim();
+        return cleaned || undefined;
+      };
+      const deriveAltFromUrl = (url: string): string | undefined => {
+        try {
+          const clean = url.split(/[?#]/)[0];
+          const file = clean.substring(clean.lastIndexOf('/') + 1);
+          if (!file) return undefined;
+          const base = file.replace(/\.[a-z0-9]+$/i, '') // strip extension
+                           .replace(/[-_]+/g, ' ')       // dashes/underscores -> space
+                           .trim();
+          return base || undefined;
+        } catch { return undefined; }
+      };
       api = {
         insertImage(imageData: ImageData) {
-          let markdownImage = `![${imageData.alt || config.image?.defaultAltText || ''}](${imageData.src}`;
-          if (imageData.title) markdownImage += ` "${imageData.title}"`;
+          const altRaw = imageData.alt
+            || config.image?.defaultAltText
+            || deriveAltFromUrl(imageData.src)
+            || '';
+          const alt = sanitizeAlt(altRaw);
+          const title = sanitizeTitle(imageData.title || (config.image as any)?.defaultTitle); // eslint-disable-line @typescript-eslint/no-explicit-any
+          let markdownImage = `![${alt}](${imageData.src}`; // standard markdown image syntax
+          if (title) markdownImage += ` "${title}"`;
           markdownImage += ')';
-          const protectedMarkdown = `\n${markdownImage}\n`;
+          // Insert raw markdown without forced surrounding blank lines; caller can add spacing.
+          const protectedMarkdown = markdownImage;
           const selection = window.getSelection();
           if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
@@ -31,7 +67,9 @@ export function createImagePlugin(opts: ImagePluginOptions): EditorPlugin {
             range.insertNode(document.createTextNode(protectedMarkdown));
             range.collapse(false);
           } else {
-            ctx.editorRoot.appendChild(document.createTextNode(protectedMarkdown));
+            // Ensure preceding space if needed to avoid gluing to previous word
+            const needsSpace = ctx.editorRoot.lastChild && ctx.editorRoot.lastChild.nodeType === Node.TEXT_NODE && /\S$/.test(ctx.editorRoot.lastChild.textContent || '');
+            ctx.editorRoot.appendChild(document.createTextNode((needsSpace ? ' ' : '') + protectedMarkdown));
           }
           ctx.onChange();
         },
@@ -39,14 +77,14 @@ export function createImagePlugin(opts: ImagePluginOptions): EditorPlugin {
           if (config.onImageUrlRequest) {
             try {
               const url = await config.onImageUrlRequest();
-              if (url) api!.insertImage({ src: url, alt: config.image?.defaultAltText || 'ފޮޓޯ' });
+              if (url) api!.insertImage({ src: url, alt: config.image?.defaultAltText || deriveAltFromUrl(url) || '' });
               return;
             } catch (e) { console.error('Image URL request failed', e); }
           }
           const url = prompt('Photo URL:', 'https://');
           if (url && url.trim()) {
             const alt = prompt('Alt text:', 'alt');
-            api!.insertImage({ src: url.trim(), alt: alt || 'photo' });
+            api!.insertImage({ src: url.trim(), alt: alt || deriveAltFromUrl(url) || '' });
           }
         }
       };
