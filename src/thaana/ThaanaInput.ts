@@ -1,8 +1,15 @@
 import { ThaanaKeyboardLayout } from "../types";
 import { AKURU, FILI, IMMEDIATE_CHARS, STANDARD_CHAR_MAP, LAYOUTS, LayoutName } from "./constants";
 
+// Strong IME event typing
+interface IMEEventMap {
+  'ime-buffer-start': { akuru: string };
+  'ime-buffer-commit': { syllable: string };
+  'ime-buffer-flush': Record<string, never>; // empty payload
+}
+
 interface EmitterLike {
-  emit: (event: string, payload: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  emit: <K extends keyof IMEEventMap>(event: K, payload: IMEEventMap[K]) => void;
 }
 
 export class ThaanaInput {
@@ -22,6 +29,10 @@ export class ThaanaInput {
   private emitBufferEvents = true; // can be toggled to disable ime-buffer events
   private recentKeyTimestamps: number[] = []; // sliding window for burst detection
   private burstSuppressed = false;
+  // Adaptive timing configuration
+  private minDelay = 180; // ms
+  private maxDelay = 600; // ms
+  private baseDelay = 500; // fallback if not enough samples
 
   constructor(config?: ThaanaKeyboardLayout, emitter?: EmitterLike) {
     this.config = config || { enabled: true };
@@ -238,11 +249,13 @@ export class ThaanaInput {
   // emit start event
   if (this.shouldEmit()) this.emitter?.emit("ime-buffer-start", { akuru: this.lastAkuru });
 
-    // wait till 500ms to see if a fili comes and flush
+    // adaptive timeout waiting for possible fili
+    const delay = this.dynamicDelayMs ? this.dynamicDelayMs() : 500;
     this.bufferTimeout = setTimeout(() => {
+      // no fili arrived; just clear internal buffer state (character already present)
       this.clearBuffer();
       this.dispatchSyntheticInput();
-    }, 500);
+    }, delay);
     this.dispatchSyntheticInput();
   }
 
@@ -361,8 +374,25 @@ export class ThaanaInput {
   // More event handlers..
   private throttledSelectionChange = this.throttle(() => {
     this.selectionChanged = true;
-    this.flushBuffer();
+    if (this.AkuruBuffer && this.isBufferInserted) {
+      this.commitPendingAkuru();
+    } else {
+      this.flushBuffer();
+    }
   }, 16);
+
+  // Commit pending single akuru without firing flush event (distinct semantic from flushBuffer)
+  private commitPendingAkuru(): void {
+    this.AkuruBuffer = "";
+    this.lastAkuru = "";
+    this.expectingFili = false;
+    this.isBufferInserted = false;
+    if (this.bufferTimeout) {
+      clearTimeout(this.bufferTimeout);
+      this.bufferTimeout = null;
+    }
+    // No ime-buffer-flush emission here; start event already fired, commit implies acceptance.
+  }
 
   private keydownEvent = (event: KeyboardEvent): void => {
     if (!this.config.enabled) return;
@@ -408,6 +438,23 @@ export class ThaanaInput {
         timeout = null;
       }, wait);
     };
+  }
+
+  // Compute adaptive delay for buffering akuru before assuming no fili will arrive.
+  private dynamicDelayMs(): number {
+    const times = this.recentKeyTimestamps;
+    if (times.length < 4) return this.baseDelay; // insufficient samples
+    const intervals: number[] = [];
+    for (let i = 1; i < times.length; i++) {
+      const diff = times[i] - times[i - 1];
+      if (diff > 0 && diff < 5000) intervals.push(diff);
+    }
+    if (!intervals.length) return this.baseDelay;
+    intervals.sort((a, b) => a - b);
+    const mid = Math.floor(intervals.length / 2);
+    const median = intervals.length % 2 === 0 ? (intervals[mid - 1] + intervals[mid]) / 2 : intervals[mid];
+    const raw = median * 1.8; // heuristic factor
+    return Math.max(this.minDelay, Math.min(this.maxDelay, raw));
   }
 
   private handlePastedContentSmart(): void {

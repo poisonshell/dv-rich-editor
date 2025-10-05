@@ -1,6 +1,6 @@
 {
   "name": "dv-rich-editor",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "type": "module",
   "description": "A Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
     "./react": {
       "import": "./dist/react/index.esm.js",
       "require": "./dist/react/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/react/index.d.ts"
     },
     "./editor/DhivehiRichEditor": {
       "import": "./dist/editor/DhivehiRichEditor.js",
@@ -38,7 +38,7 @@
     "check:react-entry": "npx -y tsc -p tools/react-entry-check/tsconfig.json --noEmit",
     "compile": "npm run bundle && npm run compile:types",
     "bundle": "rollup -c && rollup -c rollup.config.react.js",
-    "compile:types": "npx -y tsc -b tsconfig.core.json --force",
+  "compile:types": "npx -y tsc -b tsconfig.core.json --force && npx -y tsc -p tsconfig.react.types.json",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
     "dev:react": "tsc -p tsconfig.react.json --watch",
