@@ -4,20 +4,11 @@ import path from 'path';
 
 // Treat internal core/editor/etc modules as externals so they are not re-emitted under dist/react
 function makeExternal(id) {
-  // Externalize React peers
+  // Externalize peer deps only
   if (id === 'react' || id === 'react-dom' || id === 'react/jsx-runtime') return true;
-  // Externalize any import coming from this package root (core/editor/util/etc)
+  // Keep deep imports to the already-built core external so we don't duplicate core code
   if (id === 'dv-rich-editor' || id.startsWith('dv-rich-editor/')) return true;
-  // Externalize any module that resolves inside this repo's src/ folder so Rollup doesn't bundle core files
-  try {
-    const projectRoot = path.resolve(__dirname);
-    const srcPrefix = projectRoot + path.sep + 'src' + path.sep;
-    if (id.startsWith(srcPrefix) || id.includes(srcPrefix)) return true;
-  } catch (e) {
-    // ignore path resolution issues
-  }
-  // Also treat relative imports to parent folders as external (safety)
-  if (id.startsWith('../')) return true;
+  // Everything else (including relative/absolute paths inside src/react) should be bundled
   return false;
 }
 

@@ -771,7 +771,8 @@ export class DhivehiRichEditor implements EditorInstance {
         return NodeFilter.FILTER_SKIP;
       }
     });
-    while (walker.nextNode()) {
+    // We only need the first matching heading; replace single-iteration loop with if.
+    if (walker.nextNode()) {
       const el = walker.currentNode as HTMLElement;
       return parseInt(el.tagName.substring(1),10) as 1|2|3|4|5|6;
     }
