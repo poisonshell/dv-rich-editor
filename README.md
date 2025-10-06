@@ -24,7 +24,7 @@ import { DVRichEditor } from 'dv-rich-editor/react';
 
 export default function Basic() {
   const [md, setMd] = useState('');
-  return <DVRichEditor onChange={setMd} placeholder="ލިޔުއްވާށެވެ..." theme={{ name: 'default' }} />;
+  return <DVRichEditor onChange={setMd} placeholder="test" theme={{ name: 'default' }} />;
 }
 ```
 
@@ -80,6 +80,10 @@ const editor = new DhivehiRichEditor({
 * Controlled or uncontrolled React usage (debounced controlled updates)
 * Event bus: `content-change`, `selection-change`, `format-change`, IME buffer events, perf events
 * Lightweight core, no heavy framework dependency outside React wrapper
+* Programmatic content insertion helper `insertMarkdown` (parse or literal modes)
+* Selection format introspection (none | partial | all | mixed for headings)
+* Heading level resolver utility (`getActiveHeadingLevel`) for accurate toolbar display
+* True inline toggle semantics (full selection unwraps instead of nesting)
 
 ## Theming
 Pass `theme={{ name: 'dark' }}` or a custom object (colors, typography, spacing). Override with your own CSS targeting the exposed variables.
@@ -93,7 +97,6 @@ Controlled: supply `value` + `onChange` and optionally `performance.debounceCont
 
 ## Migration
 See `CHANGELOG.md`
-
 
 ## Images
 
@@ -206,8 +209,8 @@ new DhivehiRichEditor({
   markdown: {
     listStyle: 'asterisk', // 'dash' (default) | 'asterisk' | 'plus'
   }
-});
-```
+});```
+
 
 ### Markdown Output Features (summary)
 
@@ -229,23 +232,21 @@ Example table serialization:
 
 ```html
 <table>
-  <tr><th>Lang</th><th>Hello</th></tr>
+  <tr><th>Lang</th><th>Word</th></tr>
   <tr><td>EN</td><td>Hello</td></tr>
   <tr><td>DV</td><td>ހަދިޔަ</td></tr>
 </table>
 ```
 
-→
 
 ```md
-| Word | Hello |
+| Lang | Word |
 | --- | --- |
-| 1 | Hello |
-| 2 | Hi    |
+| EN | Hello |
+| DV | ލޯލް |
 ```
 
 Note: alignment / colspan not yet supported.
-```
 
 ### Editor Methods (abridged)
 
@@ -256,6 +257,13 @@ interface DhivehiRichEditorRef {
   setMarkdown(content: string, preserveFocus?: boolean): void;
   clear(): void;
   insertText(text: string): void;
+  insertMarkdown(markdown: string, options?: {
+    parse?: boolean;
+    sanitize?: boolean;
+    schedule?: 'immediate' | 'debounced';
+    collapseSelection?: 'after' | 'start';
+    literal?: boolean;
+  }): void;
   appendContent(content: string): void;
 
   // Formatting (granular API)
@@ -271,13 +279,16 @@ interface DhivehiRichEditorRef {
   insertNumberedList(): void;
   insertImageFormat(): void; // opens image dialog / inserts via ImagePlugin
   isFormatActive(format: FormatType): boolean;
+  // Tri-state selection formatting (inline + block)
+  getSelectionFormatState?(): SelectionFormatState;
+  // Uniform heading level across selection (1-6) or null if none / mixed
+  getActiveHeadingLevel?(): number | null;
 
   // Focus & Selection
   focus(): void;
   blur(): void;
   getSelection(): TextSelection;
 
-  // Images (direct insert & dialog now via plugin API; core image wrappers removed)
 
   // Clipboard
   copyToClipboard(): Promise<boolean>;
@@ -323,6 +334,116 @@ type FormatType =
 
 
 
+## Programmatic Markdown Insertion (insertMarkdown)
+
+When you need to inject content at the current caret position (slash commands, AI assist, paste enrichment, image markdown, etc.) use `insertMarkdown` instead of the low-level `insertText`.
+
+Why:
+- Deterministic change scheduling (no race with MutationObserver)
+- Optional parsing of the markdown into HTML immediately (`parse: true`)
+- Optional literal insertion (escaped as needed) with `parse: false` or `literal: true`
+- Respects existing `sanitizeMarkdown` / `sanitizeHtml` hooks
+- Marks inserted nodes dirty for the incremental serializer (efficient partial updates)
+
+Signature:
+```ts
+editor.insertMarkdown(markdown: string, options?: {
+  parse?: boolean;          // default true (markdown -> HTML -> serialize later)
+  sanitize?: boolean;       // default true (passes through provided sanitizers)
+  schedule?: 'immediate' | 'debounced'; // default 'immediate'
+  collapseSelection?: 'after' | 'start'; // where caret lands post insert (default 'after')
+  literal?: boolean;        // alias for parse:false
+});
+```
+
+Examples:
+```ts
+// Insert markdown, converting **bold** to <strong> immediately
+editor.insertMarkdown('**bold** and *italic*');
+
+// Insert literal characters (will appear with escaping so they are NOT interpreted as formatting)
+// NOTE: parse:false (or literal:true) causes control chars to be escaped: '**raw**' -> '\\*\\*raw\\*\\*'
+editor.insertMarkdown('**raw markers**', { parse: false });
+
+// Insert code block snippet at caret
+editor.insertMarkdown('\n```js\nconsole.log(1)\n```\n');
+```
+
+React ref usage:
+```tsx
+const ref = useRef<DhivehiRichEditorRef>(null);
+ref.current?.insertMarkdown('![alt](https://example.com/img.png)');
+```
+
+Use `insertText` only for simulating keystrokes / IME style character-level insertion. Prefer `insertMarkdown` for semantic content.
+
+Image Plugin Note: The internal ImagePlugin now requires `insertMarkdown` (provided automatically by the core editor). If you ever embed the plugin context manually, ensure you pass an `insertMarkdown` helper; otherwise image insertion will throw.
+
+## Inline Toggle Semantics
+
+Inline format helpers (`toggleBold`, `toggleItalic`, `toggleUnderline`, `toggleStrikethrough`, `toggleCode`) perform a true toggle:
+
+1. Selection not fully covered → format is applied (wrapping selected non-whitespace text nodes).
+2. 100% of non-whitespace text nodes already inside the format → all matching wrappers wholly contained in the selection are unwrapped (children lifted out, avoiding nested `<strong>` chains).
+3. Inline code ignores code inside `<pre><code>` (no accidental inline code toggling within code blocks).
+
+Additional niceties:
+* Caret normalization automatically exits an inline element when you reach its end so typing continues plain.
+* Whitespace-only text nodes are ignored for coverage calculation.
+* Multiple adjacent formatted spans are treated as a single logical coverage region.
+
+Result: Toolbar buttons reflect predictable toggling (second press removes formatting instead of nesting new tags).
+
+## Heading Level Introspection
+
+Use `getActiveHeadingLevel()` to obtain a uniform heading level (1–6) for the current selection, or `null` if none or mixed:
+
+```ts
+const level = editorRef.current?.getActiveHeadingLevel();
+// 1..6 when single consistent heading, otherwise null
+```
+
+Combine with `getSelectionFormatState()` where `block.heading` is `'none' | 'all' | 'mixed'` for tri-state UI. A mixed state occurs when multiple heading levels or partial coverage is selected.
+
+## Formatting State
+
+When a selection spans content that is partially formatted (e.g. half bold, half plain) you often need an "indeterminate" UI state (checkbox style) for toolbar buttons. The editor now emits an enhanced `format-change` event payload `{ formats: FormatType[]; state?: SelectionFormatState }` where `state` includes granular inline + block presence with values:
+
+`'none' | 'partial' | 'all'` (and `'mixed'` specifically for heading when multiple heading levels are selected).
+
+Shape:
+```ts
+interface SelectionFormatState {
+  inline: { bold: FormatPresence; italic: FormatPresence; underline: FormatPresence; strikethrough: FormatPresence; code: FormatPresence };
+  block: { heading: FormatPresence | 'mixed'; blockquote: FormatPresence; codeBlock: FormatPresence; bulletList: FormatPresence; numberedList: FormatPresence };
+  allActiveFormats: FormatType[];   // formats fully applied across selection
+  partialFormats: FormatType[];     // formats partially applied (or heading mixed)
+}
+```
+
+In React you can consume this using the provided hook:
+```ts
+import { useFormatState } from 'dv-rich-editor/react';
+
+function Toolbar() {
+  const state = useFormatState();
+  const boldPresence = state?.inline.bold; // 'none' | 'partial' | 'all'
+  // Render a tri-state toggle accordingly
+}
+```
+
+Toolbar example logic for a button:
+```tsx
+<button
+  data-active={state?.inline.bold === 'all'}
+  data-partial={state?.inline.bold === 'partial'}
+  aria-pressed={state?.inline.bold === 'all'}
+>
+  B
+</button>
+```
+
+
 
 ## Security
 No built-in sanitization. Supply `sanitizeHtml` / `sanitizeMarkdown` if needed before storing or rendering untrusted content.
@@ -347,7 +468,7 @@ Thaana input not working:
 // Ensure Thaana is enabled
 <DVRichEditor
   thaana={{ enabled: true }}
-  placeholder="ލިޔުއްވާށެވެ..."
+  placeholder="test"
 />
 ```
 

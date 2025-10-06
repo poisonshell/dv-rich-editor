@@ -58,20 +58,12 @@ export function createImagePlugin(opts: ImagePluginOptions): EditorPlugin {
           let markdownImage = `![${alt}](${imageData.src}`; // standard markdown image syntax
           if (title) markdownImage += ` "${title}"`;
           markdownImage += ')';
-          // Insert raw markdown without forced surrounding blank lines; caller can add spacing.
-          const protectedMarkdown = markdownImage;
-          const selection = window.getSelection();
-          if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(document.createTextNode(protectedMarkdown));
-            range.collapse(false);
-          } else {
-            // Ensure preceding space if needed to avoid gluing to previous word
-            const needsSpace = ctx.editorRoot.lastChild && ctx.editorRoot.lastChild.nodeType === Node.TEXT_NODE && /\S$/.test(ctx.editorRoot.lastChild.textContent || '');
-            ctx.editorRoot.appendChild(document.createTextNode((needsSpace ? ' ' : '') + protectedMarkdown));
+          if (!ctx.insertMarkdown) {
+            throw new Error('insertMarkdown API required but not provided in plugin context');
           }
-          ctx.onChange();
+          // Use parsed insertion so the editor immediately renders an <img> element
+          // (tests that stub insertMarkdown simply append text; they ignore the parse flag so remain valid)
+          ctx.insertMarkdown(markdownImage, { parse: true });
         },
         async openImageDialog() {
           if (config.onImageUrlRequest) {

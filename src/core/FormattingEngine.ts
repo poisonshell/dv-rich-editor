@@ -27,16 +27,353 @@ export class FormattingEngine {
   }
 
   // Granular public helpers (new API) ---------------------------------
-  toggleBold(): void { this.applyFormat('bold'); }
-  toggleItalic(): void { this.applyFormat('italic'); }
-  toggleUnderline(): void { this.applyFormat('underline'); }
-  toggleStrikethrough(): void { this.applyFormat('strikethrough'); }
-  toggleCode(): void { this.applyFormat('code'); }
+  toggleBold(): void { this.toggleInlineFormat('bold', ['strong','b']); }
+  toggleItalic(): void { this.toggleInlineFormat('italic', ['em','i']); }
+  toggleUnderline(): void { this.toggleInlineFormat('underline', ['u']); }
+  toggleStrikethrough(): void { this.toggleInlineFormat('strikethrough', ['s','strike','del']); }
+  toggleCode(): void { this.toggleInlineFormat('code', ['code'], { disallowInPre: true }); }
   toggleCodeBlock(): void { this.applyFormat('code-block'); }
   toggleBlockquote(): void { this.applyFormat('blockquote'); }
   setHeading(level: 1|2|3|4|5|6): void { this.applyFormat(('h'+level) as FormatType); }
   insertBulletList(): void { this.insertListItem('bullet'); }
   insertNumberedList(): void { this.insertListItem('numbered'); }
+
+  /** Toggle an inline format: if entire selection already formatted -> unwrap, else apply. */
+  private toggleInlineFormat(fmt: Exclude<FormatType,'h1'|'h2'|'h3'|'h4'|'h5'|'h6'|'blockquote'|'code-block'|'bullet-list'|'numbered-list'|'image'>, tags: string[], opts?: { disallowInPre?: boolean }): void {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    let didPartialUnwrap = false;
+    const affectedParents: Set<Node> = new Set();
+    if (range.collapsed) {
+      // If caret is inside an existing formatted element -> unwrap that element; else apply format
+      let node: Node | null = range.startContainer;
+      const isTargetEl = (el: Element): boolean => {
+        const tag = el.tagName.toLowerCase();
+        if (!tags.includes(tag)) return false;
+        if (opts?.disallowInPre && el.closest('pre')) return false;
+        return true;
+      };
+      while (node && node !== this.deps.editor) {
+        if (node.nodeType === Node.ELEMENT_NODE && isTargetEl(node as Element)) {
+          const unwrapElement = (el: HTMLElement) => {
+            const parent = el.parentNode; if (!parent) return;
+            while (el.firstChild) parent.insertBefore(el.firstChild, el);
+            el.remove();
+            this.deps.editor.normalize();
+          };
+          unwrapElement(node as HTMLElement);
+          this.deps.scheduleChange();
+          return;
+        }
+        node = node.parentNode;
+      }
+
+      // Boundary unwrap: caret immediately after a formatted element should toggle it off
+      const tryBoundaryUnwrap = () => {
+        const container = range.startContainer;
+        const offset = range.startOffset;
+        // If we're in a text node at its start, move to parent context to inspect previous sibling
+        if (container.nodeType === Node.TEXT_NODE) {
+          const text = container as Text;
+            // If caret not at start, also allow unwrapping when at exact end of a formatted element followed by a placeholder text node
+          if (offset > 0) {
+            // nothing: being inside a text node (not at start) means not boundary
+          } else {
+            const parent = text.parentNode;
+            if (parent) {
+              let prev: Node | null = text.previousSibling;
+              while (prev && prev.nodeType === Node.TEXT_NODE && /^[\s\u200B\u200F]*$/.test(prev.textContent || '')) prev = prev.previousSibling;
+              if (prev && prev.nodeType === Node.ELEMENT_NODE && isTargetEl(prev as Element)) {
+                const el = prev as HTMLElement;
+                // Unwrap
+                while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el);
+                el.remove();
+                this.deps.editor.normalize();
+                this.deps.scheduleChange();
+                return true;
+              }
+            }
+          }
+        } else if (container.nodeType === Node.ELEMENT_NODE) {
+          const elContainer = container as Element;
+          if (offset > 0) {
+            const prev = elContainer.childNodes[offset - 1];
+            if (prev && prev.nodeType === Node.ELEMENT_NODE && isTargetEl(prev as Element)) {
+              const el = prev as HTMLElement;
+              while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el);
+              el.remove();
+              this.deps.editor.normalize();
+              this.deps.scheduleChange();
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      if (tryBoundaryUnwrap()) return;
+
+      // Collapsed caret start formatting: insert an empty formatted element and place caret inside
+      // (Legacy applyFormat would no-op on empty selection.)
+      const tagFor: Record<string, string> = { bold: 'strong', italic: 'em', underline: 'u', strikethrough: 's', code: 'code' };
+      const tag = tagFor[fmt] || 'span';
+      if (fmt === 'code' && opts?.disallowInPre) {
+        // Avoid inserting inline code inside code block
+        const inPre = (range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement)?.closest('pre');
+        if (inPre) return; // silently ignore
+      }
+      const el = document.createElement(tag);
+      const placeholder = document.createTextNode('\u200B');
+      el.appendChild(placeholder);
+      range.insertNode(el);
+      // Place caret inside placeholder (before zero-width char so typing replaces it)
+      const sel2 = window.getSelection();
+      if (sel2) {
+        const r = document.createRange();
+        r.setStart(placeholder, 0);
+        r.collapse(true);
+        sel2.removeAllRanges();
+        sel2.addRange(r);
+      }
+      this.deps.editor.normalize();
+      this.deps.scheduleChange();
+      return;
+    }
+
+    // Gather all non-empty text nodes in selection
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(this.deps.editor, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => {
+        if (!range.intersectsNode(n)) return NodeFilter.FILTER_REJECT;
+        const data = (n as Text).data;
+        if (/^[\s\u200B\u200F]*$/.test(data)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+    if (textNodes.length === 0) return;
+
+    const nodeHasFormat = (tn: Text): boolean => {
+      let cur: Node | null = tn;
+      while (cur && cur !== this.deps.editor) {
+        if (cur.nodeType === Node.ELEMENT_NODE) {
+          const tag = (cur as Element).tagName.toLowerCase();
+          if (tags.includes(tag)) {
+            if (opts?.disallowInPre && (cur as Element).closest('pre')) return false; // treat as not inline-code if inside code block
+            return true;
+          }
+        }
+        cur = cur.parentNode;
+      }
+      return false;
+    };
+    const allHave = textNodes.every(nodeHasFormat);
+    if (!allHave) {
+      // Apply formatting to unify selection
+      this.applyFormat(fmt);
+      return;
+    }
+
+  // All of selection already formatted => unwrap / partial unwrap
+    const unwrapElement = (el: HTMLElement) => {
+      while (el.firstChild) el.parentNode?.insertBefore(el.firstChild, el);
+      el.remove();
+    };
+
+    const formattedEls = Array.from(this.deps.editor.querySelectorAll(tags.join(','))) as HTMLElement[];
+    let anyFullUnwrap = false;
+    formattedEls.forEach(el => {
+      if (opts?.disallowInPre && el.closest('pre')) return;
+      const elRange = document.createRange();
+      elRange.selectNodeContents(el);
+      const startsAfterOrAt = range.compareBoundaryPoints(Range.START_TO_START, elRange) <= 0;
+      const endsBeforeOrAt = range.compareBoundaryPoints(Range.END_TO_END, elRange) >= 0;
+      if (startsAfterOrAt && endsBeforeOrAt) {
+        unwrapElement(el);
+        anyFullUnwrap = true;
+      }
+    });
+
+    if (!anyFullUnwrap) {
+      // Partial selection inside formatted element(s). Remove formatting only for selection.
+      const frag = range.extractContents();
+      const rebuild = document.createDocumentFragment();
+      const strip = (node: Node): void => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = (node as Element).tagName.toLowerCase();
+          if (tags.includes(tag)) {
+            // Drop this wrapper, recurse children
+            node.childNodes.forEach(ch => strip(ch));
+            return;
+          }
+          // Clone and descend
+          const clone = node.cloneNode(false);
+          rebuildStack[rebuildStack.length - 1].appendChild(clone);
+          rebuildStack.push(clone as Element);
+          node.childNodes.forEach(ch => strip(ch));
+          rebuildStack.pop();
+          return;
+        }
+        // Text or others: append directly
+        rebuildStack[rebuildStack.length - 1].appendChild(node);
+      };
+      // Use a synthetic root to simplify stacking
+      const rootContainer = document.createElement('span');
+      const rebuildStack: (Element)[] = [rootContainer];
+      frag.childNodes.forEach(ch => strip(ch));
+      const insertedNodes: Node[] = [];
+      while (rootContainer.firstChild) {
+        const n = rootContainer.firstChild;
+        insertedNodes.push(n);
+        rebuild.appendChild(n);
+      }
+      range.insertNode(rebuild);
+
+      // Determine nearest formatting ancestor that fully contains selection bounds
+      const firstInserted = insertedNodes[0];
+      if (firstInserted && firstInserted.parentNode) {
+        // Find formatting ancestor for first inserted node
+        let ancestor: Node | null = firstInserted.parentNode;
+        const isFmt = (el: Element) => tags.includes(el.tagName.toLowerCase());
+        while (ancestor && ancestor !== this.deps.editor && ancestor.nodeType === Node.ELEMENT_NODE && !isFmt(ancestor as Element)) {
+          ancestor = ancestor.parentNode;
+        }
+        if (ancestor && ancestor !== this.deps.editor && ancestor.nodeType === Node.ELEMENT_NODE && isFmt(ancestor as Element)) {
+          const formatEl = ancestor as HTMLElement;
+          // Identify suffix nodes (those after the last inserted inside formatEl)
+          const lastInserted = insertedNodes[insertedNodes.length - 1];
+          const allChildren = Array.from(formatEl.childNodes);
+          const lastIdx = allChildren.indexOf(lastInserted as ChildNode);
+          const suffixNodes = allChildren.slice(lastIdx + 1);
+          const parent = formatEl.parentNode;
+          if (parent) {
+            // If we have suffix, we need to split formatEl into prefix + suffix wrapper
+            let suffixWrapper: HTMLElement | null = null;
+            if (suffixNodes.length > 0) {
+              suffixWrapper = document.createElement(formatEl.tagName.toLowerCase());
+              suffixNodes.forEach(sn => suffixWrapper!.appendChild(sn));
+            }
+            // Move inserted nodes out: they should appear after prefix (existing formatEl) and before suffix wrapper
+            const refAfter = formatEl.nextSibling;
+            insertedNodes.forEach(n => parent.insertBefore(n, refAfter));
+            // If formatEl has no remaining child nodes (prefix empty) remove it
+            if (!formatEl.firstChild) {
+              parent.removeChild(formatEl);
+            }
+            // Insert suffix wrapper after inserted nodes
+            if (suffixWrapper) {
+              parent.insertBefore(suffixWrapper, refAfter);
+              // If original formatEl became empty and we removed it, suffix wrapper is already correct; if not, it's after it
+            }
+            affectedParents.add(parent);
+            if (suffixWrapper) affectedParents.add(suffixWrapper);
+          }
+        }
+      }
+      // Set caret to end of newly inserted content
+      const sel2 = window.getSelection();
+      if (sel2) {
+        sel2.removeAllRanges();
+        const endRange = document.createRange();
+        endRange.selectNodeContents(rebuild.lastChild || rebuild);
+        endRange.collapse(false);
+        sel2.addRange(endRange);
+      }
+      didPartialUnwrap = true;
+    }
+
+    // After all structural mutations, flatten any duplicate nested inline wrappers
+    this.flattenDuplicateInline();
+    if (didPartialUnwrap && affectedParents.size) {
+      affectedParents.forEach(p => this.mergeAdjacentTextNodes(p));
+    } else {
+      this.deps.editor.normalize();
+    }
+    this.deps.scheduleChange();
+  }
+
+  private mergeAdjacentTextNodes(parent: Node): void {
+    let prev: Text | null = null;
+    const children = Array.from(parent.childNodes);
+    for (const ch of children) {
+      if (ch.nodeType === Node.TEXT_NODE) {
+        if (prev) {
+          prev.data += (ch as Text).data;
+          parent.removeChild(ch);
+        } else {
+          prev = ch as Text;
+        }
+      } else {
+        prev = null;
+        // Optionally recurse one level for inline wrappers created by split
+        if (ch.nodeType === Node.ELEMENT_NODE) {
+          const tag = (ch as Element).tagName.toLowerCase();
+          if (['strong','b','em','i','u','s','strike','del','code','span'].includes(tag)) {
+            this.mergeAdjacentTextNodes(ch);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove nested duplicate inline formatting elements that cause markdown to double-wrap (e.g., <strong><strong>text</strong></strong> -> <strong>text</strong>).
+   * Also merges consecutive sibling duplicates (<strong>a</strong><strong>b</strong> -> <strong>ab</strong>).
+   * This keeps DOM semantically minimal and avoids serializer emitting **** double asterisks.
+   */
+  private flattenDuplicateInline(): void {
+    const groups: string[][] = [
+      ['strong','b'],
+      ['em','i'],
+      ['u'],
+      ['s','strike','del'],
+      ['code']
+    ];
+    const isSameGroup = (tagA: string, tagB: string): boolean => {
+      tagA = tagA.toLowerCase(); tagB = tagB.toLowerCase();
+      return groups.some(g => g.includes(tagA) && g.includes(tagB));
+    };
+    const editor = this.deps.editor;
+    groups.forEach(group => {
+      const selector = group.join(',');
+      editor.querySelectorAll(selector).forEach(el => {
+        // Skip if inside a <pre><code> for inline code group (don't alter code contents)
+        if (group[0] !== 'code' && el.closest('code') && !el.closest('pre')) {
+          // Allow bold/italic etc inside inline code to stay literal; serializer will treat them as code text.
+          return;
+        }
+        // Unwrap nested duplicate children
+        let child = el.firstElementChild;
+        while (child) {
+          const next = child.nextElementSibling;
+            if (isSameGroup(el.tagName, child.tagName)) {
+              while (child.firstChild) el.insertBefore(child.firstChild, child);
+              child.remove();
+            }
+          child = next;
+        }
+      });
+    });
+    // Merge adjacent siblings of same semantic group
+    groups.forEach(group => {
+      const selector = group.join(',');
+      editor.querySelectorAll(selector).forEach(el => {
+        let sib = el.nextElementSibling;
+        while (sib && isSameGroup(el.tagName, sib.tagName)) {
+          const next = sib.nextElementSibling;
+          while (sib.firstChild) el.appendChild(sib.firstChild);
+          sib.remove();
+          sib = next;
+        }
+      });
+    });
+    // Remove empty inline wrappers (no meaningful text content)
+    const allSelectors = groups.flat().join(',');
+    editor.querySelectorAll(allSelectors).forEach(el => {
+      const text = (el.textContent || '').replace(/[\s\u200B\u200F]/g,'');
+      if (!text) el.remove();
+    });
+  }
 
   // Active format detection moved from editor
   isFormatActive(format: FormatType): boolean {

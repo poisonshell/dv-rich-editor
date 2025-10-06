@@ -20,6 +20,7 @@ import type {
 } from '../types';
 
 export { DVRichEditor, useDhivehiEditor } from './DhivehiRichEditorReact';
+export { default as useFormatState } from './hooks/useFormatState';
 // Use relative re-export for development; rollup build replaces this with package-root import
 export { ThemeManager } from '../editor/ThemeManager';
 

@@ -5,6 +5,8 @@ export class MarkdownSerializer {
   getMarkdown(editor: HTMLElement): string {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = editor.innerHTML;
+    // Normalize nested duplicate inline formatting (e.g., <strong><strong>t</strong></strong>)
+    this.flattenInlineDuplicates(tempDiv);
     let markdown = this.processElementToMarkdown(tempDiv, false)
       .replace(/\u200B/g, '')
       .replace(/\uFEFF/g, '')
@@ -20,6 +22,40 @@ export class MarkdownSerializer {
     
     markdown = markdown.replace(/^(?=-|\d+\.)$/gm, '$& ');
     return markdown;
+  }
+  private flattenInlineDuplicates(root: HTMLElement): void {
+    const groups: string[][] = [
+      ['strong','b'],
+      ['em','i'],
+      ['u'],
+      ['s','strike','del'],
+      ['code']
+    ];
+    const sameGroup = (a: string, b: string) => {
+      a = a.toLowerCase(); b = b.toLowerCase();
+      return groups.some(g => g.includes(a) && g.includes(b));
+    };
+    groups.forEach(group => {
+      root.querySelectorAll(group.join(',')).forEach(el => {
+        // Skip inline code inside code block
+        if (group[0] === 'code' && el.closest('pre')) return;
+        let child = el.firstElementChild;
+        while (child) {
+          const next = child.nextElementSibling;
+          if (sameGroup(el.tagName, child.tagName)) {
+            while (child.firstChild) el.insertBefore(child.firstChild, child);
+            child.remove();
+          }
+          child = next;
+        }
+      });
+    });
+    // Remove empty wrappers
+    const allSelectors = groups.flat().join(',');
+    root.querySelectorAll(allSelectors).forEach(el => {
+      const txt = (el.textContent || '').replace(/[\s\u200B\u200F]/g,'');
+      if (!txt) el.remove();
+    });
   }
   private processElementToMarkdown(element: Element, inCode: boolean): string {
     let result = '';
@@ -85,7 +121,11 @@ export class MarkdownSerializer {
     if (result && !result.endsWith('\n')) result+='\n'; return result; }
   private getBulletMarker(): string { switch (this.opts.listStyle){ case 'asterisk': return '*'; case 'plus': return '+'; case 'dash': default: return '-'; } }
   private escapeMarkdownText(text: string): string {
-  const pattern = /(?<!\\)([`*_~(){}>])/g; // intentionally exclude [] to keep existing markdown images/links intact
+    // NOTE: We intentionally removed parentheses () from the escapable set because
+    // escaping them was corrupting already-valid image/link markdown tokens like
+    // ![alt](url) by turning them into ![alt]\(url\). If later we need selective
+    // escaping, we can implement a token-protection pass instead of globally escaping.
+    const pattern = /(?<!\\)([`*_~{}>])/g; // exclude (), [] so image/link syntax stays intact
     let out = text.replace(pattern, '\\$1');
     out = out.replace(/^(?=[>#])/gm, '\\'); // Escape leading blockquote or heading markers.
     return out;

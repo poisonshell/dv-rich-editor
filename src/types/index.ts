@@ -41,6 +41,17 @@ export interface EditorInstance {
   focus(): void;
   blur(): void;
   insertText(text: string): void;
+  insertMarkdown(markdown: string, options?: {
+    parse?: boolean;
+    sanitize?: boolean;
+    schedule?: 'immediate' | 'debounced';
+    collapseSelection?: 'after' | 'start';
+    literal?: boolean; // alias for parse:false
+  }): void;
+  /** Returns tri-state formatting presence for current selection (inline + block). */
+  getSelectionFormatState?(): SelectionFormatState;
+  /** Returns the active heading level (1-6) if and only if selection is entirely that heading level; otherwise null. */
+  getActiveHeadingLevel?(): 1|2|3|4|5|6 | null;
   isFormatActive(format: FormatType): boolean;
   getActiveFormats?(): FormatType[]; // optional (new API) returns currently active formats at selection
   // Image insertion now via ImagePlugin API (getImagePluginAPI) or insertImageFormat convenience
@@ -147,7 +158,8 @@ export type ThemeName =
 export interface EditorEvents {
   "content-change": { markdown: string }; // after ChangeBuffer flush
   "selection-change": { selection: TextSelection }; // on selection updates
-  "format-change": { formats: FormatType[] }; // active format set changed
+  /** Active formats changed; state includes tri-state presence. */
+  "format-change": { formats: FormatType[]; state?: SelectionFormatState }; // backward compatible: state optional
   "ime-buffer-start": { akuru: string }; // when an akuru starts buffering
   "ime-buffer-commit": { syllable: string }; // akuru+fili committed
   "ime-buffer-flush": Record<string, never>; // buffer cleared without commit
@@ -165,6 +177,31 @@ export interface PerfEvent {
   avgIncremental?: number; // rolling average (last N incremental events)
   p95Incremental?: number; // rolling p95 (last N incremental events)
   samples?: number;        // number of samples contributing to stats
+}
+
+export type FormatPresence = 'none' | 'partial' | 'all';
+
+export interface InlineFormatState {
+  bold: FormatPresence;
+  italic: FormatPresence;
+  underline: FormatPresence;
+  strikethrough: FormatPresence;
+  code: FormatPresence; // inline code spans
+}
+
+export interface BlockFormatState {
+  heading: FormatPresence | 'mixed'; // 'mixed' when multiple heading levels present (treated as partial semantic)
+  blockquote: FormatPresence;
+  codeBlock: FormatPresence;
+  bulletList: FormatPresence;
+  numberedList: FormatPresence;
+}
+
+export interface SelectionFormatState {
+  inline: InlineFormatState;
+  block: BlockFormatState;
+  allActiveFormats: FormatType[]; // formats with presence 'all'
+  partialFormats: FormatType[];   // formats with presence 'partial' (or 'mixed' for heading)
 }
 
 // EventBusLike removed (internal bus implementation only)

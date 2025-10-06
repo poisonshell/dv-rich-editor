@@ -1,13 +1,13 @@
-import React, { 
-  useEffect, 
-  useRef, 
-  useImperativeHandle, 
-  forwardRef, 
-  createContext, 
-  useContext, 
-  useState, 
-  useCallback 
+import React, {
+  useEffect,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+  useContext,
+  useState,
+  useCallback
 } from 'react';
+import { EditorReactContext } from './internal/EditorContext';
 // Import the core editor via package-root deep import so built React bundle references
 // a resolvable package export instead of a relative ../editor/... path.
 import { DhivehiRichEditor } from '../editor/DhivehiRichEditor';
@@ -41,6 +41,7 @@ export interface DhivehiRichEditorRef {
   focus: () => void;
   blur: () => void;
   insertText: (text: string) => void;
+  insertMarkdown: (markdown: string, options?: { parse?: boolean; sanitize?: boolean; schedule?: 'immediate' | 'debounced'; collapseSelection?: 'after' | 'start'; literal?: boolean }) => void;
   // Image insertion now via insertImageFormat or plugin API.
   copyToClipboard: () => Promise<boolean>;
   pasteFromClipboard: () => Promise<boolean>;
@@ -70,8 +71,8 @@ export interface DhivehiRichEditorRef {
   getThaanaConfig?: () => Record<string, unknown> | undefined;
 }
 
-// Context for editor instance
-const EditorContext = createContext<DhivehiRichEditor | null>(null);
+// Legacy: maintain existing context access via re-exported EditorReactContext
+const EditorContext = EditorReactContext as React.Context<DhivehiRichEditor | null>;
 
 export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorProps>(
   function DVRichEditor(props, ref) {
@@ -265,6 +266,9 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
         insertText: (text: string): void => {
           safeEditorCall('insertText', editorRef.current?.insertText, text);
         },
+        insertMarkdown: (markdown: string, options) => {
+          safeEditorCall('insertMarkdown', editorRef.current?.insertMarkdown, markdown, options);
+        },
         
   // (Image proxy methods removed from core)
         
@@ -349,7 +353,7 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
     );
 
     return (
-      <EditorContext.Provider value={editorInstance}> 
+      <EditorContext.Provider value={editorInstance}>
         <div 
           ref={containerRef} 
           className={className}
