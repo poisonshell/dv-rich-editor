@@ -69,6 +69,9 @@ export interface DhivehiRichEditorRef {
   updateThaanaKeyMap?: (keyMap: Record<string, string>) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getThaanaConfig?: () => Record<string, unknown> | undefined;
+  // Test-only helper (non-public): force format-change emission
+  __forceFormatStateEmit?: () => void;
+  __getSelectionFormatStateRaw?: () => import('../types').SelectionFormatState | null;
 }
 
 // Legacy: maintain existing context access via re-exported EditorReactContext
@@ -347,6 +350,19 @@ export const DVRichEditor = forwardRef<DhivehiRichEditorRef, DhivehiRichEditorPr
             return safeEditorCall('getThaanaConfig', (editorRef.current as any).getThaanaConfig) || {};
           }
           return {};
+        },
+        __forceFormatStateEmit: () => {
+          if (editorRef.current && '__forceFormatStateEmit' in editorRef.current) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            safeEditorCall('__forceFormatStateEmit', (editorRef.current as any).__forceFormatStateEmit);
+          }
+        },
+        __getSelectionFormatStateRaw: () => {
+          if (editorRef.current && '__getSelectionFormatStateRaw' in editorRef.current) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return safeEditorCall('__getSelectionFormatStateRaw', (editorRef.current as any).__getSelectionFormatStateRaw) || null;
+          }
+          return null;
         },
       }),
       [safeEditorCall] // Only depend on the stable safeEditorCall function

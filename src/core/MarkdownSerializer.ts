@@ -21,7 +21,39 @@ export class MarkdownSerializer {
     markdown = markdown.replace(/^\n+/, '').replace(/\n+$/, '');
     
     markdown = markdown.replace(/^(?=-|\d+\.)$/gm, '$& ');
+    // Drop lines that are only bidi / zero-width markers (phantom paragraphs created by caret placeholders)
+    markdown = markdown.replace(/^(?:[\u200F\u200E\u200B]+)$/gm, '');
+    // Collapse any accidental triple newlines after removal
+    markdown = markdown.replace(/\n{3,}/g, '\n\n');
+    // Repair cases where a closing ** ended up isolated on its own line (possibly followed by RLM/ZWS)
+    markdown = this.repairIsolatedInlineClosers(markdown);
     return markdown;
+  }
+  private repairIsolatedInlineClosers(md: string): string {
+    const lines = md.split('\n');
+    const out: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
+      const stripped = raw.replace(/[\u200B\u200F]+/g, '');
+      if (/^\*\*$/.test(stripped)) {
+        // Append the ** to the previous non-empty line if it does not already end with **
+        for (let j = out.length - 1; j >= 0; j--) {
+          if (out[j].length === 0) continue; // skip blank lines
+          if (/\*\*$/.test(out[j].replace(/[\u200B\u200F]+/g, ''))) {
+            // Already closed; keep this line (rare nested) but continue
+            out.push(raw); // retain as-is
+          } else {
+            out[j] = out[j] + '**';
+          }
+          break;
+        }
+        // Do not add this line separately if merged
+        if (out[out.length - 1] !== raw) continue;
+      } else {
+        out.push(raw);
+      }
+    }
+    return out.join('\n');
   }
   private flattenInlineDuplicates(root: HTMLElement): void {
     const groups: string[][] = [
@@ -75,11 +107,69 @@ export class MarkdownSerializer {
             const pContent = this.processElementToMarkdown(el, false);
             if (result && !result.endsWith('\n')) result += '\n';
             result += pContent; if (!result.endsWith('\n')) result += '\n'; break; }
-          case 'strong': case 'b': result += '**' + this.processElementToMarkdown(el, inCode) + '**'; break;
-          case 'em': case 'i': result += '*' + this.processElementToMarkdown(el, inCode) + '*'; break;
-          case 'u': result += '<u>' + this.processElementToMarkdown(el, inCode) + '</u>'; break;
-          case 'strike': case 's': case 'del': result += '~~' + this.processElementToMarkdown(el, inCode) + '~~'; break;
-          case 'code': result += '`' + this.processElementToMarkdown(el, true) + '`'; break;
+          case 'strong': case 'b': {
+            let inner = this.processElementToMarkdown(el, inCode);
+            // Move boundary newlines (optionally preceded/followed only by zero-width or bidi marks) outside markers.
+            let leading = '';
+            let trailing = '';
+            const boundaryPatternLeading = /^(?:[\u200B\u200F\u200E]*\n)+/;
+            const boundaryPatternTrailing = /(?:\n[\u200B\u200F\u200E]*)+$/;
+            const mL = inner.match(boundaryPatternLeading);
+            if (mL) { leading = mL[0]; inner = inner.slice(leading.length); }
+            const mT = inner.match(boundaryPatternTrailing);
+            if (mT) { trailing = mT[0]; inner = inner.slice(0, -trailing.length); }
+            // If leading newline(s) occur at the very start of the current accumulation (result empty or ends with a newline),
+            // treat them as incidental (artifact of selection) and suppress them to avoid producing an empty markdown line.
+            const prefix = (leading && (result === '' || /\n$/.test(result))) ? '' : leading;
+            result += prefix + '**' + inner + '**' + trailing; break; }
+          case 'em': case 'i': {
+            let inner = this.processElementToMarkdown(el, inCode);
+            let leading = '';
+            let trailing = '';
+            const boundaryPatternLeading = /^(?:[\u200B\u200F\u200E]*\n)+/;
+            const boundaryPatternTrailing = /(?:\n[\u200B\u200F\u200E]*)+$/;
+            const mL = inner.match(boundaryPatternLeading);
+            if (mL) { leading = mL[0]; inner = inner.slice(leading.length); }
+            const mT = inner.match(boundaryPatternTrailing);
+            if (mT) { trailing = mT[0]; inner = inner.slice(0, -trailing.length); }
+            const prefix = (leading && (result === '' || /\n$/.test(result))) ? '' : leading;
+            result += prefix + '*' + inner + '*' + trailing; break; }
+          case 'u': {
+            let inner = this.processElementToMarkdown(el, inCode);
+            let leading = '';
+            let trailing = '';
+            const boundaryPatternLeading = /^(?:[\u200B\u200F\u200E]*\n)+/;
+            const boundaryPatternTrailing = /(?:\n[\u200B\u200F\u200E]*)+$/;
+            const mL = inner.match(boundaryPatternLeading);
+            if (mL) { leading = mL[0]; inner = inner.slice(leading.length); }
+            const mT = inner.match(boundaryPatternTrailing);
+            if (mT) { trailing = mT[0]; inner = inner.slice(0, -trailing.length); }
+            const prefix = (leading && (result === '' || /\n$/.test(result))) ? '' : leading;
+            result += prefix + '<u>' + inner + '</u>' + trailing; break; }
+          case 'strike': case 's': case 'del': {
+            let inner = this.processElementToMarkdown(el, inCode);
+            let leading = '';
+            let trailing = '';
+            const boundaryPatternLeading = /^(?:[\u200B\u200F\u200E]*\n)+/;
+            const boundaryPatternTrailing = /(?:\n[\u200B\u200F\u200E]*)+$/;
+            const mL = inner.match(boundaryPatternLeading);
+            if (mL) { leading = mL[0]; inner = inner.slice(leading.length); }
+            const mT = inner.match(boundaryPatternTrailing);
+            if (mT) { trailing = mT[0]; inner = inner.slice(0, -trailing.length); }
+            const prefix = (leading && (result === '' || /\n$/.test(result))) ? '' : leading;
+            result += prefix + '~~' + inner + '~~' + trailing; break; }
+          case 'code': {
+            let inner = this.processElementToMarkdown(el, true);
+            const boundaryPatternLeading = /^(?:[\u200B\u200F\u200E]*\n)+/;
+            const boundaryPatternTrailing = /(?:\n[\u200B\u200F\u200E]*)+$/;
+            let leading = '';
+            let trailing = '';
+            const mL = inner.match(boundaryPatternLeading);
+            if (mL) { leading = mL[0]; inner = inner.slice(leading.length); }
+            const mT = inner.match(boundaryPatternTrailing);
+            if (mT) { trailing = mT[0]; inner = inner.slice(0, -trailing.length); }
+            const prefix = (leading && (result === '' || /\n$/.test(result))) ? '' : leading;
+            result += prefix + '`' + inner + '`' + trailing; break; }
           case 'pre': {
             const codeEl = el.querySelector('code'); let lang='';
             if (codeEl?.className) { const m=codeEl.className.match(/language-([a-z0-9_-]+)/i); if (m) lang=m[1]; }

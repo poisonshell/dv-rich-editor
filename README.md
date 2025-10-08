@@ -84,8 +84,100 @@ const editor = new DhivehiRichEditor({
 * Selection format introspection (none | partial | all | mixed for headings)
 * Heading level resolver utility (`getActiveHeadingLevel`) for accurate toolbar display
 * True inline toggle semantics (full selection unwraps instead of nesting)
+* React hook `useFormatState` for real‑time selection formatting state
 
-## Theming
+
+## React Selection Format State (Toolbar Example)
+
+In React you can track the current selection formatting (bold / italic / underline / strikethrough / code + block formats) via the `useFormatState` hook. It listens to the editor's internal `format-change` event and returns a tri‑state object:
+
+```ts
+interface SelectionFormatState {
+  inline: {
+    bold: 'none' | 'partial' | 'all';
+    italic: 'none' | 'partial' | 'all';
+    underline: 'none' | 'partial' | 'all';
+    strikethrough: 'none' | 'partial' | 'all';
+    code: 'none' | 'partial' | 'all';
+  };
+  block: {
+    heading: 'none' | 'partial' | 'all' | 'mixed';
+    blockquote: 'none' | 'partial' | 'all';
+    codeBlock: 'none' | 'partial' | 'all';
+    bulletList: 'none' | 'partial' | 'all';
+    numberedList: 'none' | 'partial' | 'all';
+  };
+  allActiveFormats: FormatType[];    // formats fully applied across selection
+  partialFormats: FormatType[];      // formats partially applied (or heading mixed)
+}
+```
+
+### Minimal Toolbar Using Hooks
+
+```tsx
+import { DVRichEditor, useFormatState, useDhivehiEditor } from 'dv-rich-editor/react';
+
+function Toolbar() {
+  const fmt = useFormatState();
+  const { toggleBold, toggleItalic, toggleUnderline, toggleStrikethrough, toggleCode } = useDhivehiEditor();
+
+  const btn = (label: string, active: boolean | undefined, onClick: () => void) => (
+    <button
+      key={label}
+      onMouseDown={e => { e.preventDefault(); onClick(); }}
+      style={{
+        fontWeight: label === 'B' ? 'bold' : undefined,
+        background: active ? '#444' : '#222',
+        color: active ? '#fff' : '#ccc',
+        border: '1px solid #555',
+        padding: '4px 6px',
+        cursor: 'pointer'
+      }}
+      aria-pressed={!!active}
+    >{label}</button>
+  );
+
+  return (
+    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+      {btn('B', fmt?.inline.bold === 'all', toggleBold)}
+      {btn('I', fmt?.inline.italic === 'all', toggleItalic)}
+      {btn('U', fmt?.inline.underline === 'all', toggleUnderline)}
+      {btn('S', fmt?.inline.strikethrough === 'all', toggleStrikethrough)}
+      {btn('`', fmt?.inline.code === 'all', toggleCode)}
+    </div>
+  );
+}
+
+export default function EditorWithToolbar() {
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <Toolbar />
+      <DVRichEditor placeholder="Type here..." theme={{ name: 'default' }} />
+    </div>
+  );
+}
+```
+
+Notes:
+* Buttons use `onMouseDown` with `preventDefault()` so the editor selection is preserved.
+* A format state of `'partial'` (or `'mixed'` for headings) can be displayed with an indeterminate style if desired.
+* You can also read `allActiveFormats` / `partialFormats` for advanced toolbar grouping or mixed state icons.
+
+### Distinguishing Heading Levels
+
+If `fmt.block.heading === 'all'` you can query the active level via the ref method `getActiveHeadingLevel()` (available on the underlying editor instance via `ref.current?.getActiveHeadingLevel?.()`). Use that to highlight the active heading button.
+
+### Testing / Internal Helpers
+
+For unit tests where jsdom selection events can be flaky, the core exposes internal, non-public helpers (only when you hold the instance ref):
+
+```ts
+ref.current?.__forceFormatStateEmit?.();                // forces a format-change event
+const raw = ref.current?.__getSelectionFormatStateRaw?.(); // direct computation (no event)
+```
+
+These are intentionally undocumented in the public API surface and may change—avoid using them in production code.
+
 Pass `theme={{ name: 'dark' }}` or a custom object (colors, typography, spacing). Override with your own CSS targeting the exposed variables.
 
 ## React Controlled vs Uncontrolled

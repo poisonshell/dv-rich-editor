@@ -1,6 +1,6 @@
 {
   "name": "dv-rich-editor",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "type": "module",
   "description": "A Dhivehi rich text editor plugin with Thaana keyboard support and markdown output",
   "main": "dist/index.js",

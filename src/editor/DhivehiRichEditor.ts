@@ -288,6 +288,28 @@ export class DhivehiRichEditor implements EditorInstance {
     this.updateThaanaVisualState();
   }
 
+  /** Test helper: force emit current format-change event (bypasses selectionchange timing). */
+  public __forceFormatStateEmit(): void {
+    try {
+      this.ensureCaretOutsideInlineFormat();
+      const formats = this.getActiveFormats?.() || [];
+      const state = this.getSelectionFormatState?.();
+      this.events.emit("format-change", { formats, state });
+    } catch (e) {
+      // Silent in production; helper only.
+      console.warn('[__forceFormatStateEmit] failed', e);
+    }
+  }
+
+  /** Test helper: directly compute and return current selection format state (no event emission). */
+  public __getSelectionFormatStateRaw(): import("../types").SelectionFormatState | null {
+    try {
+      return this.getSelectionFormatState?.() || null;
+    } catch {
+      return null;
+    }
+  }
+
   private handleEnhancedKeydown(event: KeyboardEvent): void {
     this.handleKeydownProtection(event);
 
@@ -818,11 +840,26 @@ export class DhivehiRichEditor implements EditorInstance {
     const isRTL = (this.editor.getAttribute("dir") || "").toLowerCase() === "rtl";
     let targetText: Text | null = null;
     if (after && after.nodeType === Node.TEXT_NODE) {
-      targetText = after as Text;
-    } else {
+      targetText = after as Text; // reuse existing sibling text node
+    } else if (after) {
+      // There is a non-text sibling (e.g., another inline), create a placeholder before it
       const placeholder = document.createTextNode(isRTL ? "\u200F" : "\u200B");
       parent.insertBefore(placeholder, after);
       targetText = placeholder;
+    } else {
+      // No sibling after the inline format (end of block). Instead of inserting a new text node that can
+      // serialize as an empty line, move caret just after the inline element by appending to its parent
+      // only if parent already has trailing real text. If last child is our inline, we attempt to find or
+      // create a minimal trailing text node but mark it as non-breaking so serializer will drop it.
+      const last = parent.lastChild;
+      if (last && last.nodeType === Node.TEXT_NODE) {
+        targetText = last as Text;
+      } else {
+        // Create a placeholder but annotate it so serializer can ignore (pattern already strips pure ZW/RTL lines)
+        const placeholder = document.createTextNode(isRTL ? "\u200F" : "\u200B");
+        parent.appendChild(placeholder);
+        targetText = placeholder;
+      }
     }
     const newRange = document.createRange();
     const len = targetText.textContent ? targetText.textContent.length : 0;
