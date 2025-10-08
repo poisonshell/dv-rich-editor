@@ -112,56 +112,61 @@ interface SelectionFormatState {
 }
 ```
 
-### Minimal Toolbar Using Hooks
+### External Toolbar (Current Pattern)
+
+`useFormatState()` only works inside the editor's internal context provider. The current `<DVRichEditor />` implementation does **not** render children, so a sibling toolbar cannot consume that hook directly. Until children support is added, subscribe to the `format-change` event yourself:
 
 ```tsx
-import { DVRichEditor, useFormatState, useDhivehiEditor } from 'dv-rich-editor/react';
+import { useEffect, useRef, useState } from 'react';
+import { DVRichEditor } from 'dv-rich-editor/react';
+import type { DhivehiRichEditorRef } from 'dv-rich-editor/react';
+import type { SelectionFormatState } from 'dv-rich-editor/types';
 
-function Toolbar() {
-  const fmt = useFormatState();
-  const { toggleBold, toggleItalic, toggleUnderline, toggleStrikethrough, toggleCode } = useDhivehiEditor();
+function useExternalFormatState(ref: React.RefObject<DhivehiRichEditorRef | null>) {
+  const [fmt, setFmt] = useState<SelectionFormatState | null>(null);
+  useEffect(() => {
+    const inst = ref.current as unknown as { on?: Function; off?: Function } | null;
+    if (!inst || !inst.on) return;
+    const handler = (p: { state?: SelectionFormatState }) => setFmt(p.state || null);
+    // @ts-ignore dynamic event API
+    inst.on('format-change', handler);
+    return () => { inst.off && inst.off('format-change', handler); };
+  }, [ref.current]);
+  return fmt;
+}
 
-  const btn = (label: string, active: boolean | undefined, onClick: () => void) => (
-    <button
-      key={label}
-      onMouseDown={e => { e.preventDefault(); onClick(); }}
-      style={{
-        fontWeight: label === 'B' ? 'bold' : undefined,
-        background: active ? '#444' : '#222',
-        color: active ? '#fff' : '#ccc',
-        border: '1px solid #555',
-        padding: '4px 6px',
-        cursor: 'pointer'
-      }}
-      aria-pressed={!!active}
-    >{label}</button>
-  );
-
+function Toolbar({ editorRef }: { editorRef: React.RefObject<DhivehiRichEditorRef | null> }) {
+  const fmt = useExternalFormatState(editorRef);
+  const boldState = fmt?.inline.bold;
   return (
-    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-      {btn('B', fmt?.inline.bold === 'all', toggleBold)}
-      {btn('I', fmt?.inline.italic === 'all', toggleItalic)}
-      {btn('U', fmt?.inline.underline === 'all', toggleUnderline)}
-      {btn('S', fmt?.inline.strikethrough === 'all', toggleStrikethrough)}
-      {btn('`', fmt?.inline.code === 'all', toggleCode)}
+    <div className="toolbar">
+      <button
+        onMouseDown={e => { e.preventDefault(); editorRef.current?.toggleBold?.(); }}
+        aria-pressed={boldState === 'all'}
+        data-partial={boldState === 'partial'}
+      >B</button>
     </div>
   );
 }
 
 export default function EditorWithToolbar() {
+  const ref = useRef<DhivehiRichEditorRef | null>(null);
   return (
-    <div style={{ maxWidth: 600 }}>
-      <Toolbar />
-      <DVRichEditor placeholder="Type here..." theme={{ name: 'default' }} />
+    <div>
+      <Toolbar editorRef={ref} />
+      <DVRichEditor ref={ref} placeholder="Type here..." theme={{ name: 'default' }} />
     </div>
   );
 }
 ```
 
-Notes:
-* Buttons use `onMouseDown` with `preventDefault()` so the editor selection is preserved.
-* A format state of `'partial'` (or `'mixed'` for headings) can be displayed with an indeterminate style if desired.
-* You can also read `allActiveFormats` / `partialFormats` for advanced toolbar grouping or mixed state icons.
+Important:
+* Use `onMouseDown + preventDefault` to preserve selection.
+* Tri-state values: `none | partial | all` (and `mixed` for heading) — style `partial/mixed` distinctly.
+* For now, do not rely on `useFormatState()` in a sibling component; it will be enabled once children/provider support is introduced.
+* A temporary test-only helper exists: `ref.current?.__forceFormatStateEmit?.()`.
+
+For a deeper explanation and advanced patterns see: `docs/TOOLBAR_INTEGRATION.md`.
 
 ### Distinguishing Heading Levels
 
